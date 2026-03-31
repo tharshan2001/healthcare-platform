@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database import engine, Base
-from routers import auth, availability, prescriptions, doctors
+from routers import auth, availability, prescriptions, doctors, slots
 
 Base.metadata.create_all(bind=engine)
 
@@ -19,6 +19,7 @@ app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(availability.router, prefix="/availability", tags=["availability"])
 app.include_router(prescriptions.router, prefix="/prescriptions", tags=["prescriptions"])
 app.include_router(doctors.router, prefix="", tags=["doctors"])
+app.include_router(slots.router, prefix="", tags=["slots"])
 
 @app.get("/")
 def root():

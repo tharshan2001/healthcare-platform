@@ -35,5 +35,12 @@ class DoctorClient:
             if response.status_code == 200:
                 return response.json()
             return []
+    
+    def get_available_slots(self, doctor_id, date):
+        with httpx.Client() as client:
+            response = client.get(f"{self.base_url}/doctors/{doctor_id}/slots", params={"date": date})
+            if response.status_code == 200:
+                return response.json()
+            return []
 
 doctor_client = DoctorClient()

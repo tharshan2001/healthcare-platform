@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from typing import List, Optional
 from database import get_db
@@ -27,18 +27,33 @@ class AvailabilityResponse(BaseModel):
     end_time: str
     is_available: bool
 
+class TimeSlotResponse(BaseModel):
+    doctor_id: int
+    date: str
+    time: str
+    available: bool
+
 @router.get("/doctors", response_model=List[DoctorResponse])
 def get_doctors(
     specialty: Optional[str] = None,
     min_experience: Optional[int] = None,
     max_fee: Optional[float] = None,
-    current_patient: Patient = Depends(get_current_patient)
+    current_patient: Optional[Patient] = Depends(get_current_patient)
+):
+    doctors = doctor_client.get_doctors(specialty=specialty, min_experience=min_experience, max_fee=max_fee)
+    return doctors
+
+@router.get("/doctors/public", response_model=List[DoctorResponse])
+def get_doctors_public(
+    specialty: Optional[str] = None,
+    min_experience: Optional[int] = None,
+    max_fee: Optional[float] = None
 ):
     doctors = doctor_client.get_doctors(specialty=specialty, min_experience=min_experience, max_fee=max_fee)
     return doctors
 
 @router.get("/doctors/{doctor_id}", response_model=DoctorResponse)
-def get_doctor(doctor_id: int, current_patient: Patient = Depends(get_current_patient)):
+def get_doctor(doctor_id: int):
     doctor = doctor_client.get_doctor(doctor_id)
     if not doctor:
         from fastapi import HTTPException
@@ -46,6 +61,11 @@ def get_doctor(doctor_id: int, current_patient: Patient = Depends(get_current_pa
     return doctor
 
 @router.get("/doctors/{doctor_id}/availability", response_model=List[AvailabilityResponse])
-def get_doctor_availability(doctor_id: int, current_patient: Patient = Depends(get_current_patient)):
+def get_doctor_availability(doctor_id: int):
     availability = doctor_client.get_availability(doctor_id)
     return availability
+
+@router.get("/doctors/{doctor_id}/slots", response_model=List[TimeSlotResponse])
+def get_available_slots(doctor_id: int, date: str = Query(...)):
+    slots = doctor_client.get_available_slots(doctor_id, date)
+    return slots
