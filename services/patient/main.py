@@ -1,0 +1,45 @@
+from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from database import engine, Base, get_db
+from routers import auth, records, doctors, appointments
+from utils.auth import decode_token
+from models import Patient
+
+Base.metadata.create_all(bind=engine)
+
+app = FastAPI(title="Patient Service", version="1.0.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+security = HTTPBearer()
+
+def get_current_patient(credentials: HTTPAuthorizationCredentials = Depends(security), db = Depends(get_db)):
+    token = credentials.credentials
+    payload = decode_token(token)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    patient_id = payload.get("sub")
+    patient = db.query(Patient).filter(Patient.id == int(patient_id)).first()
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    return patient
+
+app.include_router(auth.router, prefix="/auth", tags=["auth"])
+app.include_router(records.router, prefix="/records", tags=["records"])
+app.include_router(doctors.router, prefix="/doctors", tags=["doctors"])
+app.include_router(appointments.router, prefix="/appointments", tags=["appointments"])
+
+@app.get("/")
+def root():
+    return {"message": "Patient Service is running"}
+
+@app.get("/health")
+def health():
+    return {"status": "healthy"}
