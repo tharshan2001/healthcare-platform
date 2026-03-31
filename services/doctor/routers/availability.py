@@ -26,6 +26,28 @@ def add_availability(
     db.refresh(db_availability)
     return db_availability
 
+@router.post("/availability/bulk", response_model=List[AvailabilityResponse])
+def add_bulk_availability(
+    availabilities: List[AvailabilityCreate],
+    current_doctor: Doctor = Depends(get_current_doctor),
+    db: Session = Depends(get_db)
+):
+    db_availabilities = []
+    for avail in availabilities:
+        db_availability = Availability(
+            doctor_id=current_doctor.id,
+            day_of_week=avail.day_of_week,
+            start_time=avail.start_time,
+            end_time=avail.end_time,
+            is_available=avail.is_available
+        )
+        db.add(db_availability)
+        db_availabilities.append(db_availability)
+    db.commit()
+    for a in db_availabilities:
+        db.refresh(a)
+    return db_availabilities
+
 @router.get("/availability", response_model=List[AvailabilityResponse])
 def get_availability(
     current_doctor: Doctor = Depends(get_current_doctor),
