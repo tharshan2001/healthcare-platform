@@ -14,6 +14,7 @@ class AppointmentUpdate(BaseModel):
     appointment_date: Optional[str] = None
     appointment_time: Optional[str] = None
     status: Optional[str] = None
+    reason_for_visit: Optional[str] = None
     notes: Optional[str] = None
     payment_status: Optional[str] = None
 
