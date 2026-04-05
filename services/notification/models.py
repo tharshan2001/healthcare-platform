@@ -1,6 +1,14 @@
-from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy import Column, Integer, String, DateTime, Enum
+from sqlalchemy.sql import func
 from datetime import datetime
 from database import Base
+import enum
+
+class NotificationType(enum.Enum):
+    appointment = "appointment"
+    payment = "payment"
+    reminder = "reminder"
+    update = "update"
 
 
 class Notification(Base):
@@ -12,10 +20,9 @@ class Notification(Base):
 
     message = Column(String, nullable=False)
 
-    type = Column(String, nullable=False)  
-    # example: "appointment", "payment", etc.
+    type = Column(Enum(NotificationType), nullable=False)
 
-    status = Column(String, default="unread")  
     # unread / read
-
-    created_at = Column(DateTime, default=datetime.utcnow)
+    status = Column(String, default="unread", nullable=False) 
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

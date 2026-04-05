@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
 from models import Notification
@@ -7,13 +7,14 @@ from schemas import NotificationCreate, NotificationResponse
 router = APIRouter()
 
 
-# ✅ CREATE NOTIFICATION (UPDATED)
+# ✅ CREATE NOTIFICATION
 @router.post("/", response_model=NotificationResponse)
 def create_notification(notification: NotificationCreate, db: Session = Depends(get_db)):
     new_notification = Notification(
         user_id=notification.user_id,
         message=notification.message,
-        type=notification.type
+        type=notification.type,
+        status="unread"
     )
 
     db.add(new_notification)
@@ -22,24 +23,36 @@ def create_notification(notification: NotificationCreate, db: Session = Depends(
 
     return new_notification
 
+# ✅ GET UNREAD NOTIFICATIONS
+@router.get("/unread/{user_id}", response_model = list[NotificationResponse])
+def get_unread_notifications(user_id: int, db: Session = Depends(get_db)):
+    notifications = db.query(Notification).filter(
+        Notification.user_id == user_id,
+        Notification.status == "unread"
+    ).all()
+
+    return notifications
+
 
 # ✅ GET USER NOTIFICATIONS
-@router.get("/{user_id}")
+@router.get("/{user_id}", response_model=list[NotificationResponse])
 def get_notifications(user_id: int, db: Session = Depends(get_db)):
-    return db.query(Notification).filter(
+    notifications = db.query(Notification).filter(
         Notification.user_id == user_id
     ).all()
 
+    return notifications
+
 
 # ✅ MARK AS READ
-@router.put("/read/{notification_id}")
+@router.put("/{notification_id}", response_model=NotificationResponse)
 def mark_as_read(notification_id: int, db: Session = Depends(get_db)):
     notification = db.query(Notification).filter(
         Notification.id == notification_id
     ).first()
 
     if not notification:
-        return {"message": "Notification not found"}
+        raise HTTPException(status_code=404, detail="Notification not found")
 
     notification.status = "read"
     db.commit()
@@ -56,7 +69,7 @@ def delete_notification(notification_id: int, db: Session = Depends(get_db)):
     ).first()
 
     if not notification:
-        return {"message": "Notification not found"}
+        raise HTTPException(status_code=404, detail="Notification not found")
 
     db.delete(notification)
     db.commit()
