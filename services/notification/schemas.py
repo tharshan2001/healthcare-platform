@@ -5,8 +5,10 @@ from datetime import datetime
 # ✅ REQUEST BODY (for creating notification)
 class NotificationCreate(BaseModel):
     user_id: int
-    message: str
+    message:  str | None = None
     type: str
+    email: str
+    phone: str
 
 
 # ✅ RESPONSE MODEL (what API returns)
