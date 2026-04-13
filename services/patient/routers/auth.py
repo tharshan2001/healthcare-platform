@@ -5,6 +5,10 @@ from database import get_db
 from schemas import PatientCreate, PatientLogin, PatientResponse, PatientUpdate, Token
 from models import Patient
 from utils.auth import hash_password, verify_password, create_access_token, decode_token
+from utils.notification_client import send_notification
+import os
+
+NOTIFICATION_SERVICE_URL = os.getenv("NOTIFICATION_SERVICE_URL", "http://localhost:8004")
 
 router = APIRouter()
 
@@ -40,6 +44,18 @@ def register(patient: PatientCreate, db: Session = Depends(get_db)):
     db.add(db_patient)
     db.commit()
     db.refresh(db_patient)
+    
+    try:
+        send_notification(
+            user_id=db_patient.id,
+            message=f"Welcome {patient.full_name}! Your account has been created successfully.",
+            notification_type="update",
+            email=patient.email,
+            phone=patient.phone or ""
+        )
+    except Exception as e:
+        print(f"Failed to send notification: {e}")
+    
     return db_patient
 
 @router.post("/login", response_model=Token)
