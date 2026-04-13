@@ -5,6 +5,7 @@ from database import get_db
 from schemas import AppointmentCreate, AppointmentUpdate, AppointmentResponse
 from models import Appointment, AppointmentStatus, PaymentStatus
 from utils.auth import decode_token
+from utils.notification_client import send_notification
 from typing import List
 
 router = APIRouter()
@@ -76,6 +77,20 @@ def create_appointment(
     db.refresh(db_appointment)
     
     cache_availability(appointment.doctor_id, appointment.appointment_date, appointment.appointment_time, False)
+    
+    if appointment.patient_email:
+        doctor_name = appointment.doctor_name or "your doctor"
+        message = f"Your appointment with Dr. {doctor_name} is scheduled for {appointment.appointment_date} at {appointment.appointment_time}."
+        try:
+            send_notification(
+                user_id=appointment.patient_id,
+                message=message,
+                notification_type="appointment",
+                email=appointment.patient_email,
+                phone=appointment.patient_phone or ""
+            )
+        except Exception as e:
+            print(f"Failed to send notification: {e}")
     
     return db_appointment
 
