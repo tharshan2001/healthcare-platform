@@ -14,7 +14,7 @@ async def create_notification(
     notification: NotificationCreate, 
     db: Session = Depends(get_db)
 ):
-    from queue import notification_queue
+    from notification_queue import notification_queue
     
     final_message = notification.message or generate_message(notification.type)
 
@@ -75,7 +75,7 @@ async def create_sync_notification(
 
 @router.get("/queue/size")
 async def get_queue_size():
-    from queue import notification_queue
+    from notification_queue import notification_queue
     size = await notification_queue.size()
     return {"queue_size": size}
 

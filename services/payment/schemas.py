@@ -9,6 +9,8 @@ class CreatePaymentRequest(BaseModel):
     amount: float = Field(..., gt=0)
     currency: str = "usd"
     payment_method: str = "stripe"
+    patient_email: Optional[str] = None
+    patient_phone: Optional[str] = None
 
 
 class CreatePaymentResponse(BaseModel):

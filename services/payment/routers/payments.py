@@ -1,6 +1,7 @@
 import os
 from dotenv import load_dotenv
 import stripe
+import httpx
 from fastapi import APIRouter, Depends, HTTPException,Request
 from sqlalchemy.orm import Session
 from database import get_db
@@ -14,6 +15,25 @@ from schemas import (
 from utils.stripe_client import create_checkout_session
 
 router = APIRouter(prefix="/payments", tags=["Payments"])
+
+NOTIFICATION_SERVICE_URL = os.getenv("NOTIFICATION_SERVICE_URL", "http://localhost:8004")
+
+
+def send_payment_notification(user_id: int, message: str, email: str, phone: str):
+    try:
+        with httpx.Client(timeout=10.0) as client:
+            client.post(
+                f"{NOTIFICATION_SERVICE_URL}/notifications/",
+                json={
+                    "user_id": user_id,
+                    "message": message,
+                    "type": "payment",
+                    "email": email,
+                    "phone": phone
+                }
+            )
+    except Exception as e:
+        print(f"Failed to send notification: {e}")
 
 
 @router.post("/create", response_model=CreatePaymentResponse)
@@ -40,6 +60,15 @@ def create_payment(request: CreatePaymentRequest, db: Session = Depends(get_db))
         payment.checkout_session_id = session.id
         db.commit()
         db.refresh(payment)
+
+        if request.patient_email:
+            message = f"Your payment of ${request.amount} is ready. Please complete payment to confirm your appointment."
+            send_payment_notification(
+                user_id=request.patient_id,
+                message=message,
+                email=request.patient_email,
+                phone=request.patient_phone or ""
+            )
 
         return CreatePaymentResponse(
             payment_id=payment.id,

@@ -9,6 +9,9 @@ class AppointmentCreate(BaseModel):
     appointment_time: str
     reason_for_visit: Optional[str] = None
     notes: Optional[str] = None
+    patient_email: Optional[str] = None
+    patient_phone: Optional[str] = None
+    doctor_name: Optional[str] = None
 
 class AppointmentUpdate(BaseModel):
     appointment_date: Optional[str] = None

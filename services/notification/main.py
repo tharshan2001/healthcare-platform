@@ -7,7 +7,7 @@ from routers.notification_routes import router as notification_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    from queue import process_queue
+    from notification_queue import process_queue
     import asyncio
     
     queue_task = asyncio.create_task(process_queue())
