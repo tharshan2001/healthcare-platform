@@ -1,31 +1,85 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { toast } from 'react-hot-toast';
 import { patientAPI } from '../api/patient';
+import PaymentModal from '../components/PaymentModal';
 
 export default function Landing() {
+  const [searchParams] = useSearchParams();
+  const [searchDoctorName, setSearchDoctorName] = useState('');
   const [searchSpecialty, setSearchSpecialty] = useState('');
-  const [doctors, setDoctors] = useState([]);
+  const [searchHospital, setSearchHospital] = useState('');
+  const [searchDate, setSearchDate] = useState('');
+  const [specializations, setSpecializations] = useState([]);
+  const [hospitals, setHospitals] = useState([]);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [doctorAvailability, setDoctorAvailability] = useState([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [slotsByDate, setSlotsByDate] = useState({});
   const [selectedSlot, setSelectedSlot] = useState(null);
+  const [lockedSlotId, setLockedSlotId] = useState(null);
   const [reason, setReason] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
-    loadDoctors();
+    const doctorId = searchParams.get('doctor');
+    if (doctorId) {
+      loadDoctorFromSearch(doctorId);
+    }
   }, []);
 
-  const loadDoctors = async () => {
-    const data = await patientAPI.getDoctors();
-    setDoctors(Array.isArray(data) ? data : []);
+  const loadDoctorFromSearch = async (doctorId) => {
+    try {
+      const doctor = await patientAPI.getDoctor(doctorId);
+      if (doctor && doctor.id) {
+        handleDoctorClick(doctor);
+      }
+    } catch (e) {
+      console.error('Failed to load doctor:', e);
+    }
+  };
+
+  useEffect(() => {
+    loadFilterOptions();
+  }, []);
+
+  const loadFilterOptions = async () => {
+    const [specs, hosps] = await Promise.all([
+      patientAPI.getSpecializations(),
+      patientAPI.getHospitals()
+    ]);
+    setSpecializations(Array.isArray(specs) ? specs : []);
+    setHospitals(Array.isArray(hosps) ? hosps : []);
+  };
+
+  const getFilterLabel = () => {
+    const parts = [];
+    if (searchDoctorName) parts.push(searchDoctorName);
+    if (searchSpecialty) parts.push(searchSpecialty);
+    if (searchHospital) parts.push(searchHospital);
+    if (searchDate) parts.push(searchDate);
+    return parts.length > 0 ? parts.join(', ') : null;
   };
 
   const handleSearch = async () => {
-    const data = await patientAPI.getDoctors(searchSpecialty);
-    setDoctors(Array.isArray(data) ? data : []);
+    if (!searchSpecialty && !searchHospital && !searchDoctorName && !searchDate) {
+      navigate('/doctor-search');
+      return;
+    }
+    
+    const params = new URLSearchParams();
+    if (searchDoctorName) params.append('doctor_name', searchDoctorName);
+    if (searchSpecialty) params.append('specialty', searchSpecialty);
+    if (searchHospital) params.append('hospital_name', searchHospital);
+    if (searchDate) params.append('date', searchDate);
+    
+    navigate(`/doctor-search?${params.toString()}`);
+  };
+
+  const handleGoToSearch = () => {
+    navigate('/doctor-search');
   };
 
   const handleDoctorClick = async (doctor) => {
@@ -71,36 +125,97 @@ export default function Landing() {
     setLoadingSlots(false);
   };
 
-  const handleBookClick = () => {
+  const handleBookClick = async () => {
     const token = localStorage.getItem('patient_token');
     if (!token) {
       setShowLoginModal(true);
+      toast.error('Please login to book an appointment');
       return;
     }
     
     if (!selectedSlot) {
-      alert('Please select a time slot');
+      toast.error('Please select a time slot');
       return;
     }
     
-    handleConfirmBooking();
+    const slotId = selectedSlot?.id;
+    if (!slotId) {
+      toast.error('Invalid slot. Please select again.');
+      return;
+    }
+    
+    const patientId = parseInt(localStorage.getItem('patient_id') || '1');
+    
+    toast.loading('Locking slot...', { id: 'booking' });
+    
+    try {
+      const lockResult = await patientAPI.lockSlot(slotId, patientId);
+      console.log('Lock result:', lockResult);
+      
+      if (lockResult.success) {
+        setLockedSlotId(slotId);
+        setShowPaymentModal(true);
+        toast.dismiss('booking');
+      } else {
+        toast.error(lockResult.message || 'Failed to lock slot', { id: 'booking' });
+      }
+    } catch (err) {
+      console.error('Lock error:', err);
+      toast.error(err.detail || 'Failed to lock slot', { id: 'booking' });
+    }
   };
 
-  const handleConfirmBooking = async () => {
-    const result = await patientAPI.createAppointment({
-      doctor_id: selectedDoctor.id,
-      appointment_date: selectedSlot.date,
-      appointment_time: selectedSlot.time,
-      reason_for_visit: reason,
-    });
+  const [processing, setProcessing] = useState(false);
 
-    if (result.id) {
-      alert('Appointment booked successfully!');
-      setSelectedDoctor(null);
-      navigate('/patient/dashboard');
-    } else {
-      alert(result.detail || 'Failed to book appointment');
+  const handlePaymentSuccess = async () => {
+    if (!lockedSlotId || !selectedDoctor || !selectedSlot) return;
+    
+    setProcessing(true);
+    toast.loading('Booking appointment...', { id: 'booking' });
+    
+    try {
+      const result = await patientAPI.bookSlot(
+        lockedSlotId,
+        parseInt(localStorage.getItem('patient_id') || '1'),
+        selectedDoctor.id,
+        selectedSlot.date,
+        selectedSlot.time,
+        reason
+      );
+
+      if (result.success) {
+        toast.success('Appointment booked successfully!', { id: 'booking' });
+        setShowPaymentModal(false);
+        setSelectedDoctor(null);
+        setSelectedSlot(null);
+        setReason('');
+        setLockedSlotId(null);
+        setTimeout(() => navigate('/patient/dashboard'), 1500);
+      } else {
+        toast.error(result.detail || 'Failed to book appointment', { id: 'booking' });
+        handlePaymentFailure();
+      }
+    } catch (err) {
+      toast.error(err.detail || 'Failed to book appointment', { id: 'booking' });
+      handlePaymentFailure();
     }
+    setProcessing(false);
+  };
+
+  const handlePaymentFailure = async () => {
+    if (lockedSlotId) {
+      try {
+        await patientAPI.releaseSlot(
+          lockedSlotId, 
+          parseInt(localStorage.getItem('patient_id') || '1')
+        );
+      } catch (e) {}
+    }
+    setShowPaymentModal(false);
+    setSelectedDoctor(null);
+    setSelectedSlot(null);
+    setReason('');
+    setLockedSlotId(null);
   };
 
   const isLoggedIn = () => !!localStorage.getItem('patient_token');
@@ -172,35 +287,98 @@ export default function Landing() {
             Channel top specialists at leading hospitals. Quick, easy, and secure booking.
           </p>
           
-          {/* Search Box */}
-          <div className="max-w-3xl mx-auto">
-            <div className="bg-white rounded-2xl shadow-2xl p-2 flex flex-col md:flex-row">
-              <div className="flex-1 flex items-center px-4 py-3">
-                <svg className="w-5 h-5 text-gray-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-                <input
-                  type="text"
-                  placeholder="Search by specialty, doctor name..."
-                  value={searchSpecialty}
-                  onChange={(e) => setSearchSpecialty(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                  className="flex-1 outline-none text-gray-700 placeholder-gray-400"
-                />
+          {/* Search Box - 4 Field Filter Bar */}
+          <div className="max-w-5xl mx-auto">
+            <div className="bg-slate-800/90 backdrop-blur-sm rounded-2xl shadow-2xl p-3 flex flex-col md:flex-row gap-2">
+              {/* Doctor Name */}
+              <div className="flex-1 min-w-[140px]">
+                <label className="block text-left text-xs text-blue-200 mb-1 ml-1">Doctor Name</label>
+                <div className="bg-white/10 border border-white/20 rounded-xl flex items-center px-3 py-2">
+                  <svg className="w-4 h-4 text-blue-300 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                  <input
+                    type="text"
+                    placeholder="Dr. Name"
+                    value={searchDoctorName}
+                    onChange={(e) => setSearchDoctorName(e.target.value)}
+                    className="w-full bg-transparent outline-none text-white placeholder-blue-300/60 text-sm"
+                  />
+                </div>
               </div>
-              <button 
-                onClick={handleSearch} 
-                className="bg-blue-600 text-white px-8 py-3 rounded-xl font-semibold hover:bg-blue-700 transition shadow-lg mt-2 md:mt-0 md:ml-2"
-              >
-                Search
-              </button>
+              
+              {/* Specialization */}
+              <div className="flex-1 min-w-[140px]">
+                <label className="block text-left text-xs text-blue-200 mb-1 ml-1">Specialization</label>
+                <div className="bg-white/10 border border-white/20 rounded-xl flex items-center px-3 py-2">
+                  <svg className="w-4 h-4 text-blue-300 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  <select
+                    value={searchSpecialty}
+                    onChange={(e) => setSearchSpecialty(e.target.value)}
+                    className="w-full bg-transparent outline-none text-white text-sm cursor-pointer"
+                  >
+                    <option value="" className="text-slate-800">Select</option>
+                    {specializations.map(s => (
+                      <option key={s} value={s} className="text-slate-800">{s}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              
+              {/* Hospital */}
+              <div className="flex-1 min-w-[140px]">
+                <label className="block text-left text-xs text-blue-200 mb-1 ml-1">Hospital</label>
+                <div className="bg-white/10 border border-white/20 rounded-xl flex items-center px-3 py-2">
+                  <svg className="w-4 h-4 text-blue-300 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                  </svg>
+                  <select
+                    value={searchHospital}
+                    onChange={(e) => setSearchHospital(e.target.value)}
+                    className="w-full bg-transparent outline-none text-white text-sm cursor-pointer"
+                  >
+                    <option value="" className="text-slate-800">Select</option>
+                    {hospitals.map(h => (
+                      <option key={h} value={h} className="text-slate-800">{h}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              
+              {/* Date */}
+              <div className="flex-1 min-w-[140px]">
+                <label className="block text-left text-xs text-blue-200 mb-1 ml-1">Date</label>
+                <div className="bg-white/10 border border-white/20 rounded-xl flex items-center px-3 py-2">
+                  <svg className="w-4 h-4 text-blue-300 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <input
+                    type="date"
+                    value={searchDate}
+                    onChange={(e) => setSearchDate(e.target.value)}
+                    className="w-full bg-transparent outline-none text-white text-sm cursor-pointer"
+                  />
+                </div>
+              </div>
+              
+              {/* Search / View All Button */}
+              <div className="flex items-end">
+                <button 
+                  onClick={handleGoToSearch} 
+                  className="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-semibold hover:bg-blue-700 transition shadow-lg w-full md:w-auto"
+                >
+                  Search
+                </button>
+              </div>
             </div>
           </div>
           
           {/* Quick Stats */}
           <div className="flex justify-center gap-8 mt-12 text-blue-200">
             <div className="text-center">
-              <div className="text-2xl font-bold text-white">{doctors.length}+</div>
+              <div className="text-2xl font-bold text-white">50+</div>
               <div className="text-sm">Doctors</div>
             </div>
             <div className="text-center">
@@ -212,70 +390,7 @@ export default function Landing() {
               <div className="text-sm">Support</div>
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* Doctors List */}
-      <div className="max-w-5xl mx-auto px-4 py-12">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">
-              {searchSpecialty ? `Results for "${searchSpecialty}"` : 'Available Doctors'}
-            </h2>
-            <p className="text-gray-500 mt-1">{doctors.length} doctors ready to serve you</p>
-          </div>
-        </div>
-
-        {doctors.length === 0 ? (
-          <div className="text-center py-16 bg-white rounded-2xl shadow-sm">
-            <div className="text-gray-400 text-lg">No doctors found</div>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {doctors.map((doctor) => (
-              <div 
-                key={doctor.id}
-                onClick={() => handleDoctorClick(doctor)}
-                className="bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-xl hover:border-blue-200 transition-all duration-300 cursor-pointer p-6 group"
-              >
-                <div className="flex items-center gap-6">
-                  {/* Avatar */}
-                  <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-blue-50 rounded-2xl flex items-center justify-center text-4xl flex-shrink-0 group-hover:scale-105 transition-transform">
-                    👨‍⚕️
-                  </div>
-                  
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
-                      {doctor.full_name}
-                    </h3>
-                    <p className="text-blue-600 font-medium">{doctor.specialty}</p>
-                    <p className="text-gray-500 text-sm mt-1">{doctor.qualifications}</p>
-                    <div className="flex items-center gap-4 mt-3 text-sm text-gray-500">
-                      <span className="flex items-center gap-1">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        {doctor.years_of_experience} years
-                      </span>
-                      <span className="text-green-600 font-semibold">Rs. {doctor.consultation_fee}</span>
-                    </div>
-                  </div>
-                  
-                  {/* Button */}
-                  <div className="flex-shrink-0">
-                    <span className="inline-flex items-center gap-2 bg-blue-50 text-blue-600 px-5 py-2.5 rounded-full font-medium group-hover:bg-blue-600 group-hover:text-white transition-all">
-                      <span>Book Now</span>
-                      <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                      </svg>
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+</div>
       </div>
 
       {/* Features */}
@@ -418,7 +533,7 @@ export default function Landing() {
                           {data.slots.map((slot, idx) => (
                             <button
                               key={idx}
-                              onClick={() => setSelectedSlot({ date, time: slot.time, ...slot })}
+                              onClick={() => setSelectedSlot({ ...slot, date })}
                               className={`py-2 px-4 rounded-lg text-sm font-medium transition-all ${
                                 selectedSlot?.date === date && selectedSlot?.time === slot.time
                                   ? 'bg-blue-600 text-white shadow-md'
@@ -482,6 +597,30 @@ export default function Landing() {
           </div>
         </div>
       )}
+
+      {/* Payment Modal */}
+      <PaymentModal 
+        isOpen={showPaymentModal}
+        onClose={() => {
+          if (!processing) {
+            setShowPaymentModal(false);
+          }
+        }}
+        doctor={selectedDoctor}
+        slot={selectedSlot}
+        onSuccess={handlePaymentSuccess}
+        onFailure={handlePaymentFailure}
+        onReleaseSlot={async () => {
+          if (lockedSlotId) {
+            await patientAPI.releaseSlot(
+              lockedSlotId, 
+              parseInt(localStorage.getItem('patient_id') || '1')
+            );
+          }
+        }}
+        processing={processing}
+        setProcessing={setProcessing}
+      />
     </div>
   );
 }

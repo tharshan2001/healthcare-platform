@@ -48,16 +48,30 @@ export const patientAPI = {
     return res.json();
   },
 
-  getDoctors: async (specialty) => {
-    const params = specialty ? `?specialty=${encodeURIComponent(specialty)}` : '';
-    const res = await fetch(`${API_BASE}/doctors/doctors/public${params}`);
+  getDoctors: async (filters = {}) => {
+    const params = new URLSearchParams();
+    if (filters.doctor_name) params.append('doctor_name', filters.doctor_name);
+    if (filters.specialty) params.append('specialty', filters.specialty);
+    if (filters.hospital) params.append('hospital', filters.hospital);
+    if (filters.min_experience) params.append('min_experience', filters.min_experience);
+    if (filters.max_fee) params.append('max_fee', filters.max_fee);
+    const queryString = params.toString();
+    const res = await fetch(`${API_BASE}/doctors/doctors/public${queryString ? '?' + queryString : ''}`);
+    return res.json();
+  },
+
+  getSpecializations: async () => {
+    const res = await fetch(`http://localhost:8002/specializations`);
+    return res.json();
+  },
+
+  getHospitals: async () => {
+    const res = await fetch(`http://localhost:8002/hospitals`);
     return res.json();
   },
 
   getDoctor: async (id) => {
-    const res = await fetch(`${API_BASE}/doctors/doctors/${id}`, {
-      headers: { ...getAuthHeader() },
-    });
+    const res = await fetch(`${API_BASE}/doctors/doctors/public/${id}`);
     return res.json();
   },
 
@@ -68,6 +82,44 @@ export const patientAPI = {
 
   getAvailableSlots: async (doctorId, date) => {
     const res = await fetch(`${API_BASE}/doctors/doctors/${doctorId}/slots?date=${date}`);
+    return res.json();
+  },
+
+  lockSlot: async (slotId, patientId) => {
+    const res = await fetch('http://localhost:8002/doctors/slots/lock', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slot_id: slotId, patient_id: patientId }),
+    });
+    return res.json();
+  },
+
+  bookSlot: async (slotId, patientId, doctorId, date, time, reason) => {
+    const res = await fetch('http://localhost:8002/doctors/slots/book', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        slot_id: slotId,
+        patient_id: patientId,
+        doctor_id: doctorId,
+        date,
+        time,
+        reason
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || 'Failed to book');
+    }
+    return res.json();
+  },
+
+  releaseSlot: async (slotId, patientId) => {
+    const res = await fetch('http://localhost:8002/doctors/slots/release', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slot_id: slotId, patient_id: patientId }),
+    });
     return res.json();
   },
 
