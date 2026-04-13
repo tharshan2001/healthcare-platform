@@ -3,103 +3,165 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from database import get_db
 from schemas import AvailabilityResponse
-from models import Availability, Doctor
+from models import Availability, Doctor, TimeSlot
 from typing import List
-from datetime import datetime
+from datetime import datetime, timedelta
 import httpx
 
 router = APIRouter()
 
+LOCK_DURATION_MINUTES = 10
+
 class TimeSlotResponse(BaseModel):
+    id: int
     doctor_id: int
     date: str
     time: str
     available: bool
+    is_locked: bool = False
 
-APPOINTMENT_SERVICE_URL = "http://localhost:8003"
+class LockSlotRequest(BaseModel):
+    slot_id: int
+    patient_id: int
 
-def generate_time_slots(start_time: str, end_time: str, slot_duration_minutes: int = 30):
-    slots = []
-    start_h, start_m = map(int, start_time.split(':'))
-    end_h, end_m = map(int, end_time.split(':'))
-    
-    current = start_h * 60 + start_m
-    end = end_h * 60 + end_m
-    
-    while current + slot_duration_minutes <= end:
-        h = current // 60
-        m = current % 60
-        slots.append(f"{h:02d}:{m:02d}")
-        current += slot_duration_minutes
-    
-    return slots
+class LockSlotResponse(BaseModel):
+    success: bool
+    slot_id: int
+    message: str
+    expires_at: str
 
-@router.get("/doctors/{doctor_id}/availability", response_model=List[AvailabilityResponse])
-def get_doctor_availability(doctor_id: int, db: Session = Depends(get_db)):
-    doctor = db.query(Doctor).filter(Doctor.id == doctor_id).first()
-    if not doctor:
-        raise HTTPException(status_code=404, detail="Doctor not found")
-    
-    availability = db.query(Availability).filter(
-        Availability.doctor_id == doctor_id,
-        Availability.is_available == True
-    ).all()
-    return availability
+class BookSlotRequest(BaseModel):
+    slot_id: int
+    patient_id: int
+    doctor_id: int
+    date: str
+    time: str
+    reason: str
 
-@router.get("/doctors/{doctor_id}/slots", response_model=List[TimeSlotResponse])
+class ReleaseSlotRequest(BaseModel):
+    slot_id: int
+    patient_id: int
+
+@router.get("/doctors/{doctor_id}/slots")
 def get_available_slots(
     doctor_id: int,
-    date: str = Query(...),
+    date: str,
     db: Session = Depends(get_db)
 ):
-    doctor = db.query(Doctor).filter(Doctor.id == doctor_id).first()
-    if not doctor:
-        raise HTTPException(status_code=404, detail="Doctor not found")
+    slots = db.query(TimeSlot).filter(
+        TimeSlot.doctor_id == doctor_id,
+        TimeSlot.date == date,
+        TimeSlot.is_booked == False
+    ).order_by(TimeSlot.time).all()
     
-    availability = db.query(Availability).filter(
-        Availability.doctor_id == doctor_id,
-        Availability.is_available == True
-    ).all()
+    return [
+        {
+            "id": s.id,
+            "doctor_id": s.doctor_id,
+            "date": s.date,
+            "time": s.time,
+            "available": not s.is_booked,
+            "is_locked": s.is_booked
+        }
+        for s in slots
+    ]
+
+@router.post("/doctors/slots/lock", response_model=LockSlotResponse)
+def lock_slot(
+    request: LockSlotRequest,
+    db: Session = Depends(get_db)
+):
+    slot = db.query(TimeSlot).filter(TimeSlot.id == request.slot_id).first()
+    if not slot:
+        raise HTTPException(status_code=404, detail="Slot not found")
     
-    if not availability:
-        return []
+    now = datetime.utcnow()
     
-    try:
-        input_date = datetime.strptime(date, '%Y-%m-%d')
-        day_name = input_date.strftime('%A')
-    except:
-        raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
+    if slot.is_booked and slot.locked_at and slot.locked_at > now:
+        if slot.booked_by == request.patient_id:
+            expires_at = slot.locked_at + timedelta(minutes=LOCK_DURATION_MINUTES)
+            return {
+                "success": True,
+                "slot_id": request.slot_id,
+                "message": "Slot already locked by you",
+                "expires_at": expires_at.isoformat()
+            }
+        raise HTTPException(status_code=409, detail="Slot is already locked by another patient")
     
-    available_for_day = [a for a in availability if a.day_of_week == day_name]
+    expires_at = now + timedelta(minutes=LOCK_DURATION_MINUTES)
+    slot.is_booked = True
+    slot.locked_at = now
+    slot.booked_by = request.patient_id
+    db.commit()
     
-    if not available_for_day:
-        return []
+    return {
+        "success": True,
+        "slot_id": request.slot_id,
+        "message": f"Slot locked for {LOCK_DURATION_MINUTES} minutes",
+        "expires_at": expires_at.isoformat()
+    }
+
+@router.post("/doctors/slots/book")
+def book_slot(
+    request: BookSlotRequest,
+    db: Session = Depends(get_db)
+):
+    slot = db.query(TimeSlot).filter(TimeSlot.id == request.slot_id).first()
+    if not slot:
+        raise HTTPException(status_code=404, detail="Slot not found")
+    
+    now = datetime.utcnow()
+    
+    if slot.is_booked and slot.locked_at and slot.locked_at > now:
+        if slot.booked_by != request.patient_id:
+            raise HTTPException(status_code=409, detail="Slot was locked by another patient")
     
     try:
         with httpx.Client() as client:
-            response = client.get(
+            response = client.post(
                 f"{APPOINTMENT_SERVICE_URL}/appointments/appointments",
-                params={"doctor_id": doctor_id}
+                json={
+                    "patient_id": request.patient_id,
+                    "doctor_id": request.doctor_id,
+                    "appointment_date": request.date,
+                    "appointment_time": request.time,
+                    "reason_for_visit": request.reason
+                }
             )
             if response.status_code == 200:
-                all_appointments = response.json()
-                booked = [a for a in all_appointments if a.get('appointment_date') == date and a.get('status') != 'cancelled']
-                booked_times = [a['appointment_time'] for a in booked]
+                slot.is_booked = True
+                slot.locked_at = now
+                slot.booked_by = request.patient_id
+                db.commit()
+                return {"success": True, "message": "Appointment booked successfully"}
             else:
-                booked_times = []
-    except:
-        booked_times = []
+                slot.is_booked = False
+                slot.locked_at = None
+                slot.booked_by = None
+                db.commit()
+                raise HTTPException(status_code=400, detail="Failed to book appointment")
+    except Exception as e:
+        slot.is_booked = False
+        slot.locked_at = None
+        slot.booked_by = None
+        db.commit()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/doctors/slots/release")
+def release_slot(
+    request: ReleaseSlotRequest,
+    db: Session = Depends(get_db)
+):
+    slot = db.query(TimeSlot).filter(TimeSlot.id == request.slot_id).first()
+    if not slot:
+        raise HTTPException(status_code=404, detail="Slot not found")
     
-    all_slots = []
-    for avail in available_for_day:
-        slots = generate_time_slots(avail.start_time, avail.end_time)
-        for slot in slots:
-            if slot not in booked_times:
-                all_slots.append({
-                    "doctor_id": doctor_id,
-                    "date": date,
-                    "time": slot,
-                    "available": True
-                })
+    if slot.booked_by != request.patient_id:
+        raise HTTPException(status_code=403, detail="Cannot release slot locked by another patient")
     
-    return all_slots
+    slot.is_booked = False
+    slot.locked_at = None
+    slot.booked_by = None
+    db.commit()
+    
+    return {"success": True, "message": "Slot released"}

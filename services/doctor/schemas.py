@@ -12,6 +12,7 @@ class DoctorCreate(BaseModel):
     consultation_fee: Optional[float] = 0.0
     years_of_experience: Optional[int] = 0
     bio: Optional[str] = None
+    hospital: Optional[str] = None
 
 class DoctorLogin(BaseModel):
     email: EmailStr
@@ -27,6 +28,7 @@ class DoctorResponse(BaseModel):
     consultation_fee: float
     years_of_experience: int
     bio: Optional[str]
+    hospital: Optional[str]
     is_available: bool
     created_at: datetime
 
@@ -40,6 +42,7 @@ class DoctorUpdate(BaseModel):
     consultation_fee: Optional[float] = None
     years_of_experience: Optional[int] = None
     bio: Optional[str] = None
+    hospital: Optional[str] = None
     is_available: Optional[bool] = None
 
 class Token(BaseModel):

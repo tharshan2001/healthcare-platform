@@ -15,6 +15,7 @@ class Doctor(Base):
     consultation_fee = Column(Float, default=0.0)
     years_of_experience = Column(Integer, default=0)
     bio = Column(String(1000))
+    hospital = Column(String(255))
     is_available = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -28,6 +29,18 @@ class Availability(Base):
     start_time = Column(String(10), nullable=False)
     end_time = Column(String(10), nullable=False)
     is_available = Column(Boolean, default=True)
+
+class TimeSlot(Base):
+    __tablename__ = "time_slots"
+
+    id = Column(Integer, primary_key=True, index=True)
+    doctor_id = Column(Integer, index=True, nullable=False)
+    date = Column(String(10), nullable=False)
+    time = Column(String(10), nullable=False)
+    is_booked = Column(Boolean, default=False)
+    booked_by = Column(Integer, nullable=True)
+    locked_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 class Prescription(Base):
     __tablename__ = "prescriptions"
