@@ -98,4 +98,18 @@ export const doctorAPI = {
     });
     return res.json();
   },
+
+  getMyAppointments: async () => {
+    const res = await fetch('http://localhost:8003/appointments/appointments?doctor_id=1');
+    return res.json();
+  },
+
+  updateAppointment: async (id, data) => {
+    const res = await fetch(`http://localhost:8003/appointments/appointments/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify(data),
+    });
+    return res.json();
+  },
 };
