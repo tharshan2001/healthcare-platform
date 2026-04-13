@@ -112,4 +112,23 @@ export const patientAPI = {
     });
     return res.json();
   },
+
+  getNotifications: async () => {
+    const userId = localStorage.getItem('patient_id') || 1;
+    const res = await fetch(`http://localhost:8004/notifications/${userId}`);
+    return res.json();
+  },
+
+  getUnreadNotifications: async () => {
+    const userId = localStorage.getItem('patient_id') || 1;
+    const res = await fetch(`http://localhost:8004/notifications/unread/${userId}`);
+    return res.json();
+  },
+
+  markNotificationRead: async (id) => {
+    const res = await fetch(`http://localhost:8004/notifications/${id}`, {
+      method: 'PUT',
+    });
+    return res.json();
+  },
 };
