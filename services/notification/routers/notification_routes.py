@@ -1,7 +1,7 @@
 from utils import generate_message
-from sms_service import send_sms
 from email_service import send_email
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from sms_service import send_sms
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
 from models import Notification
@@ -9,22 +9,14 @@ from schemas import NotificationCreate, NotificationResponse
 
 router = APIRouter()
 
-# Send Notification
-def send_notification(message: str, user_id: int):
-    print(f"Email sent to user {user_id}: {message}")
-
-    print(f"SMS sent to user {user_id}: {message}")
-
-# ✅ CREATE NOTIFICATION
 @router.post("/", response_model=NotificationResponse)
-def create_notification(
+async def create_notification(
     notification: NotificationCreate, 
-    background_tasks: BackgroundTasks, 
     db: Session = Depends(get_db)
 ):
+    from queue import notification_queue
     
     final_message = notification.message or generate_message(notification.type)
-
 
     new_notification = Notification(
         user_id=notification.user_id,
@@ -37,30 +29,57 @@ def create_notification(
     db.commit()
     db.refresh(new_notification)
 
-    background_tasks.add_task(
-        send_email,
-        notification.email,
-        "New Notification",
-        new_notification.message
-    )
-
-    background_tasks.add_task(
-        send_sms,
-        notification.phone,
-        new_notification.message
-    )
-
-    # Add background task to send notifications
-    background_tasks.add_task(
-        send_notification,
-        notification.message, 
-        notification.user_id
-    )
+    await notification_queue.enqueue({
+        "user_id": notification.user_id,
+        "message": final_message,
+        "email": notification.email,
+        "phone": notification.phone,
+        "subject": f"Healthcare Platform - {notification.type.title()}"
+    })
 
     return new_notification
 
-# ✅ GET UNREAD NOTIFICATIONS
-@router.get("/unread/{user_id}", response_model = list[NotificationResponse])
+@router.post("/sync/{user_id}", response_model=NotificationResponse)
+async def create_sync_notification(
+    user_id: int,
+    message: str,
+    notification_type: str,
+    email: str,
+    phone: str,
+    db: Session = Depends(get_db)
+):    
+    final_message = message or generate_message(notification_type)
+
+    new_notification = Notification(
+        user_id=user_id,
+        message=final_message,
+        type=notification_type,
+        status="unread"
+    )
+
+    db.add(new_notification)
+    db.commit()
+    db.refresh(new_notification)
+
+    try:
+        send_email(email, f"Healthcare Platform - {notification_type.title()}", final_message)
+    except Exception as e:
+        print(f"❌ Email failed: {e}")
+
+    try:
+        send_sms(phone, final_message)
+    except Exception as e:
+        print(f"❌ SMS failed: {e}")
+
+    return new_notification
+
+@router.get("/queue/size")
+async def get_queue_size():
+    from queue import notification_queue
+    size = await notification_queue.size()
+    return {"queue_size": size}
+
+@router.get("/unread/{user_id}", response_model=list[NotificationResponse])
 def get_unread_notifications(user_id: int, db: Session = Depends(get_db)):
     notifications = db.query(Notification).filter(
         Notification.user_id == user_id,
@@ -69,8 +88,6 @@ def get_unread_notifications(user_id: int, db: Session = Depends(get_db)):
 
     return notifications
 
-
-# ✅ GET USER NOTIFICATIONS
 @router.get("/{user_id}", response_model=list[NotificationResponse])
 def get_notifications(user_id: int, db: Session = Depends(get_db)):
     notifications = db.query(Notification).filter(
@@ -79,8 +96,6 @@ def get_notifications(user_id: int, db: Session = Depends(get_db)):
 
     return notifications
 
-
-# ✅ MARK AS READ
 @router.put("/{notification_id}", response_model=NotificationResponse)
 def mark_as_read(notification_id: int, db: Session = Depends(get_db)):
     notification = db.query(Notification).filter(
@@ -96,8 +111,6 @@ def mark_as_read(notification_id: int, db: Session = Depends(get_db)):
 
     return notification
 
-
-# ✅ DELETE NOTIFICATION
 @router.delete("/{notification_id}")
 def delete_notification(notification_id: int, db: Session = Depends(get_db)):
     notification = db.query(Notification).filter(
