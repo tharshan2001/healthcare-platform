@@ -18,30 +18,30 @@ export default function DoctorDashboard() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    loadData();
-  }, []);
+    const loadData = async () => {
+      const profileData = await doctorAPI.getProfile();
+      if (profileData.detail === 'Invalid token') {
+        navigate('/doctor/login');
+        return;
+      }
+      setProfile(profileData);
+      localStorage.setItem('doctor_id', profileData.id);
 
-  const loadData = async () => {
-    const profileData = await doctorAPI.getProfile();
-    if (profileData.detail === 'Invalid token') {
-      navigate('/doctor/login');
-      return;
-    }
-    setProfile(profileData);
-    localStorage.setItem('doctor_id', profileData.id);
-    
-    const [avail, pres, apts, notif] = await Promise.all([
-      doctorAPI.getMyAvailability(),
-      doctorAPI.getMyPrescriptions(),
-      doctorAPI.getMyAppointments(),
-      fetch(`http://localhost:8004/notifications/${profileData.id}`).then(r => r.json()).catch(() => [])
-    ]);
-    setAvailability(avail);
-    setPrescriptions(pres);
-    setAppointments(apts.filter(a => a.doctor_id === profileData.id));
-    setNotifications(notif);
-    setUnreadCount(notif.filter(n => n.status === 'unread').length);
-  };
+      const [avail, pres, apts, notif] = await Promise.all([
+        doctorAPI.getMyAvailability(),
+        doctorAPI.getMyPrescriptions(),
+        doctorAPI.getMyAppointments(),
+        fetch(`http://localhost:8004/notifications/${profileData.id}`).then(r => r.json()).catch(() => []),
+      ]);
+      setAvailability(avail);
+      setPrescriptions(pres);
+      setAppointments(apts.filter((a) => a.doctor_id === profileData.id));
+      setNotifications(notif);
+      setUnreadCount(notif.filter((n) => n.status === 'unread').length);
+    };
+
+    loadData();
+  }, [navigate]);
 
   const handleLogout = () => {
     doctorAPI.logout();
@@ -75,14 +75,32 @@ export default function DoctorDashboard() {
     }
   };
 
-  const getPatientEmail = async (patientId) => {
-    try {
-      const res = await fetch(`http://localhost:8001/patients/patients/${patientId}`);
-      const data = await res.json();
-      return data.email || `Patient #${patientId}`;
-    } catch {
-      return `Patient #${patientId}`;
+  const handleCreateTelemedicineFromAppointment = (apt) => {
+    const params = new URLSearchParams({
+      role: 'doctor',
+      source: 'appointment',
+      appointmentId: String(apt.id),
+      doctorId: String(apt.doctor_id),
+      patientId: String(apt.patient_id),
+      durationMin: '30',
+    });
+
+    const timeText = String(apt.appointment_time || '').slice(0, 5);
+    const startDate = new Date(`${apt.appointment_date}T${timeText || '00:00'}`);
+    if (!Number.isNaN(startDate.getTime())) {
+      const endDate = new Date(startDate.getTime() + 30 * 60 * 1000);
+      params.set('startAt', startDate.toISOString());
+      params.set('endAt', endDate.toISOString());
     }
+
+    navigate(`/telemedicine?${params.toString()}`);
+  };
+
+  const getAppointmentStatusClass = (status) => {
+    if (status === 'scheduled') return 'bg-yellow-100 text-yellow-800';
+    if (status === 'completed') return 'bg-green-100 text-green-800';
+    if (status === 'cancelled') return 'bg-red-100 text-red-800';
+    return 'bg-gray-100 text-gray-800';
   };
 
   return (
@@ -103,6 +121,9 @@ export default function DoctorDashboard() {
               )}
             </button>
             <span className="hidden md:inline">{profile?.full_name}</span>
+            <button onClick={() => navigate('/telemedicine?role=doctor')} className="bg-green-700 px-4 py-2 rounded hover:bg-green-600">
+              Telemedicine
+            </button>
             <button onClick={handleLogout} className="bg-red-500 px-4 py-2 rounded hover:bg-red-600">Logout</button>
           </div>
         </div>
@@ -181,17 +202,18 @@ export default function DoctorDashboard() {
                         <p className="text-sm text-gray-500 mt-1">{apt.reason_for_visit}</p>
                       </div>
                       <div className="mt-2 md:mt-0 flex flex-col md:items-end gap-2">
-                        <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
-                          apt.status === 'scheduled' ? 'bg-yellow-100 text-yellow-800' : 
-                          apt.status === 'completed' ? 'bg-green-100 text-green-800' : 
-                          apt.status === 'cancelled' ? 'bg-red-100 text-red-800' : 
-                          'bg-gray-100 text-gray-800'
-                        }`}>
+                        <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${getAppointmentStatusClass(apt.status)}`}>
                           {apt.status}
                         </span>
                         {apt.status === 'scheduled' && (
                           <div className="flex gap-2">
-                            <button 
+                            <button
+                              onClick={() => handleCreateTelemedicineFromAppointment(apt)}
+                              className="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600"
+                            >
+                              Telemedicine
+                            </button>
+                            <button
                               onClick={() => handleUpdateAppointment(apt.id, 'completed')}
                               className="bg-green-500 text-white px-3 py-1 rounded text-sm hover:bg-green-600"
                             >

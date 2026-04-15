@@ -390,6 +390,23 @@ export default function Landing() {
               <div className="text-sm">Support</div>
             </div>
           </div>
+
+          <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={() => navigate('/telemedicine')}
+              className="rounded-full bg-white px-6 py-3 font-semibold text-blue-700 shadow-lg transition hover:bg-blue-50"
+            >
+              Open Telemedicine Hub
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/telemedicine?role=patient')}
+              className="rounded-full border border-white/30 px-6 py-3 font-semibold text-white transition hover:bg-white/10"
+            >
+              Patient sessions
+            </button>
+          </div>
 </div>
       </div>
 

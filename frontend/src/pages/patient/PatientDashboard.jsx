@@ -100,6 +100,9 @@ export default function PatientDashboard() {
               )}
             </button>
             <span className="hidden md:inline">{profile?.full_name}</span>
+            <button onClick={() => navigate('/telemedicine?role=patient')} className="bg-blue-700 px-4 py-2 rounded hover:bg-blue-600">
+              Telemedicine
+            </button>
             <button onClick={handleLogout} className="bg-red-500 px-4 py-2 rounded hover:bg-red-600">Logout</button>
           </div>
         </div>

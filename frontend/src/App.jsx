@@ -9,6 +9,8 @@ import PatientLogin from './pages/patient/PatientLogin';
 import PatientRegister from './pages/patient/PatientRegister';
 import PatientDashboard from './pages/patient/PatientDashboard';
 import SymptomChecker from './pages/patient/SymptomChecker';
+import TelemedicineHub from './pages/telemedicine/TelemedicineHub';
+import TelemedicineSession from './pages/telemedicine/TelemedicineSession';
 
 function App() {
   return (
@@ -47,6 +49,8 @@ function App() {
         <Route path="/patient/register" element={<PatientRegister />} />
         <Route path="/patient/dashboard" element={<PatientDashboard />} />
         <Route path="/patient/symptoms" element={<SymptomChecker />} />
+        <Route path="/telemedicine" element={<TelemedicineHub />} />
+        <Route path="/telemedicine/sessions/:sessionId" element={<TelemedicineSession />} />
       </Routes>
     </BrowserRouter>
   );

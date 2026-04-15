@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import botImage from '../../assets/bot.png'
+import botImage from '../../assets/bot.svg'
 
 const BotAvatar = () => (
   <div className="w-10 h-10 rounded-full flex items-center justify-center text-xl shrink-0 shadow-md overflow-hidden p-1">
@@ -44,8 +44,8 @@ function SymptomChecker() {
       })
       const data = await response.json()
       setMessages(prev => [...prev, { role: 'assistant', content: data.response }])
-    } catch (error) {
-      setMessages(prev => [...prev, { 
+    } catch {
+      setMessages(prev => [...prev, {
         role: 'assistant', 
         content: '⚠️ Couldn\'t reach server. Please ensure backend is running on port 8000.' 
       }])
