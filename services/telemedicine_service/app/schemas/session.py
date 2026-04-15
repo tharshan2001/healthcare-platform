@@ -18,9 +18,9 @@ class ParticipantRole(str, Enum):
 
 
 class SessionCreateRequest(BaseModel):
-    appointment_id: UUID | None = Field(None, description="Optional appointment id from appointment service")
-    doctor_id: UUID
-    patient_id: UUID
+    appointment_id: int | None = Field(None, description="Optional appointment id from appointment service")
+    doctor_id: int
+    patient_id: int
     scheduled_start_at: datetime
     scheduled_end_at: datetime
     provider: str = Field("jitsi", description="jitsi or twilio")
@@ -38,7 +38,7 @@ class SessionCreateResponse(BaseModel):
 
 class JoinSessionRequest(BaseModel):
     role: ParticipantRole
-    participant_id: UUID
+    participant_id: int
     display_name: str = Field(..., min_length=2, max_length=80)
 
 
@@ -55,16 +55,16 @@ class JoinSessionResponse(BaseModel):
 class SessionEventResponse(BaseModel):
     event_type: str
     actor_role: str | None
-    actor_id: UUID | None
+    actor_id: int | None
     payload: dict | None
     created_at: datetime
 
 
 class SessionDetailResponse(BaseModel):
     id: UUID
-    appointment_id: UUID | None
-    doctor_id: UUID
-    patient_id: UUID
+    appointment_id: int | None
+    doctor_id: int
+    patient_id: int
     provider: str
     room_name: str
     status: SessionStatus
@@ -87,18 +87,18 @@ class SessionListResponse(BaseModel):
 
 class StartSessionRequest(BaseModel):
     actor_role: str = "doctor"
-    actor_id: UUID | None = None
+    actor_id: int | None = None
 
 
 class CompleteSessionRequest(BaseModel):
     actor_role: str = "doctor"
-    actor_id: UUID | None = None
+    actor_id: int | None = None
 
 
 class CancelSessionRequest(BaseModel):
     reason: str = Field(..., min_length=3, max_length=500)
     actor_role: str = "doctor"
-    actor_id: UUID | None = None
+    actor_id: int | None = None
 
 
 class MessageResponse(BaseModel):
@@ -120,8 +120,8 @@ class ErrorResponse(BaseModel):
 
 
 class SessionFilters(BaseModel):
-    doctor_id: UUID | None = None
-    patient_id: UUID | None = None
+    doctor_id: int | None = None
+    patient_id: int | None = None
     status: SessionStatus | None = None
 
     model_config = ConfigDict(extra="ignore")

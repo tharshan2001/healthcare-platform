@@ -1,65 +1,6 @@
 version: '3.8'
 
 services:
-  # PostgreSQL Database for AI Symptom Service
-  ai_symptom_db:
-    image: postgres:15
-    container_name: ai_symptom_db
-    environment:
-      POSTGRES_DB: ai_symptom_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    volumes:
-      - ai_symptom_data:/var/lib/postgresql/data
-      - ./database/init_schemas/ai_symptom_db.sql:/docker-entrypoint-initdb.d/init.sql
-    ports:
-      - "5437:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d ai_symptom_db"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - healthcare_network
-
-  # Redis Cache
-  redis:
-    image: redis:7-alpine
-    container_name: redis_cache
-    ports:
-      - "7379:6379"
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - healthcare_network
-
-  # AI Symptom Service
-  ai_symptom_service:
-    build:
-      context: ./services/ai_symptom_service
-      dockerfile: Dockerfile
-    container_name: ai_symptom_service
-    ports:
-      - "8007:8000"
-    depends_on:
-      ai_symptom_db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    env_file:
-      - ./services/ai_symptom_service/.env
-    environment:
-      - DATABASE_URL=postgresql://postgres:postgres@ai_symptom_db:5432/ai_symptom_db
-      - REDIS_URL=redis://redis:6379/0
-    networks:
-      - healthcare_network
-    restart: unless-stopped
-
   # PostgreSQL Database for Telemedicine Service
   telemedicine_db:
     image: postgres:15

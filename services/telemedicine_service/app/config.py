@@ -16,11 +16,23 @@ class Settings(BaseSettings):
     API_V1_PREFIX: str = "/api/v1"
 
     # CORS
-    ALLOWED_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:8080"]
+    ALLOWED_ORIGINS: list[str] = [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:5173",
+        "http://localhost:8080",
+        "http://127.0.0.1:8080",
+    ]
+    ALLOWED_ORIGIN_REGEX: str = r"^https?://(localhost|127\.0\.0\.1)(:\\d+)?$"
 
     # Video provider
     VIDEO_PROVIDER: str = "jitsi"
     JOIN_TOKEN_TTL_SECONDS: int = 3600
+
+    # External dependency checks
+    # Set to True in environments where doctor/patient/appointment services are guaranteed reachable.
+    EXTERNAL_VALIDATION_STRICT: bool = False
 
     # Jitsi
     JITSI_BASE_URL: str = "https://meet.jit.si"

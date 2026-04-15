@@ -18,11 +18,32 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def _normalize_telemedicine_schema() -> None:
+    """Ensure telemedicine participant ids use integer columns, rebuilding legacy UUID tables when needed."""
+    with engine.connect() as conn:
+        row = conn.execute(
+            text(
+                """
+                SELECT data_type
+                FROM information_schema.columns
+                WHERE table_name = 'telemedicine_sessions' AND column_name = 'doctor_id'
+                """
+            )
+        ).fetchone()
+
+    if row and row[0] == "uuid":
+        logger.warning("Detected legacy UUID telemedicine schema. Rebuilding telemedicine tables for integer ids.")
+        Base.metadata.drop_all(bind=engine)
+        Base.metadata.create_all(bind=engine)
+        logger.info("Telemedicine schema rebuilt successfully")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting %s v%s", settings.APP_NAME, settings.APP_VERSION)
     try:
         Base.metadata.create_all(bind=engine)
+        _normalize_telemedicine_schema()
         logger.info("Database tables created/verified")
     except Exception as exc:
         logger.warning("Could not create database tables: %s", exc)
@@ -47,6 +68,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.ALLOWED_ORIGINS,
+    allow_origin_regex=settings.ALLOWED_ORIGIN_REGEX,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

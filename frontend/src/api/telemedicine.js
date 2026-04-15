@@ -1,13 +1,21 @@
-/* eslint-disable import/no-unused-modules */
+const getDefaultApiBase = () => {
+  if (typeof globalThis === 'undefined' || !globalThis.location) {
+    return 'http://localhost:8004/api/v1/telemedicine';
+  }
+  const { protocol, hostname } = globalThis.location;
+  return `${protocol}//${hostname}:8004/api/v1/telemedicine`;
+};
 
-const API_BASE = 'http://localhost:8004/api/v1/telemedicine';
+const API_BASE = import.meta.env.VITE_TELEMEDICINE_API_BASE || getDefaultApiBase();
 
 const requestJson = async (path, options = {}) => {
+  const headers = { ...(options.headers ?? {}) };
+  if (options.body !== undefined && options.body !== null) {
+    headers['Content-Type'] = 'application/json';
+  }
+
   const response = await fetch(`${API_BASE}${path}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...(options.headers ?? {}),
-    },
+    headers,
     ...options,
   });
 
@@ -35,8 +43,8 @@ const buildQueryString = (params = {}) => {
 };
 
 export const telemedicineAPI = {
-  listSessions: async (filters = {}) => requestJson(`/sessions${buildQueryString(filters)}`),
-  getSession: async (sessionId) => requestJson(`/sessions/${sessionId}`),
+  listSessions: async ({ role, participant_id, ...filters } = {}) => requestJson(`/sessions${buildQueryString({ role, participant_id, ...filters })}`),
+  getSession: async (sessionId, { role, participant_id } = {}) => requestJson(`/sessions/${sessionId}${buildQueryString({ role, participant_id })}`),
   createSession: async (data) => requestJson('/sessions', { method: 'POST', body: JSON.stringify(data) }),
   joinSession: async (sessionId, data) => requestJson(`/sessions/${sessionId}/join`, { method: 'POST', body: JSON.stringify(data) }),
   startSession: async (sessionId, data) => requestJson(`/sessions/${sessionId}/start`, { method: 'PATCH', body: JSON.stringify(data) }),

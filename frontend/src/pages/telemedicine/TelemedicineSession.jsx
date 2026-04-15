@@ -1,5 +1,5 @@
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { telemedicineAPI } from '../../api/telemedicine';
@@ -39,16 +39,12 @@ export default function TelemedicineSession() {
   const [error, setError] = useState('');
   const [showJoinModal, setShowJoinModal] = useState(false);
 
-  useEffect(() => {
-    loadSession();
-  }, [sessionId]);
-
-  const loadSession = async () => {
+  const loadSession = useCallback(async () => {
     setLoading(true);
     setError('');
 
     try {
-      const data = await telemedicineAPI.getSession(sessionId);
+      const data = await telemedicineAPI.getSession(sessionId, { role, participant_id: participantId });
       setSession(data);
     } catch (err) {
       setError(err?.message || 'Unable to load session');
@@ -56,10 +52,14 @@ export default function TelemedicineSession() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [sessionId, role, participantId]);
+
+  useEffect(() => {
+    loadSession();
+  }, [loadSession]);
 
   const refreshSession = async () => {
-    const data = await telemedicineAPI.getSession(sessionId);
+    const data = await telemedicineAPI.getSession(sessionId, { role, participant_id: participantId });
     setSession(data);
   };
 
@@ -149,12 +149,8 @@ export default function TelemedicineSession() {
               <p className="mt-1 break-all text-sm text-slate-600">{session.room_name}</p>
             </div>
             <div className="rounded-xl bg-slate-50 p-4">
-              <p className="text-sm font-semibold text-slate-900">Doctor</p>
-              <p className="mt-1 break-all text-sm text-slate-600">{session.doctor_id}</p>
-            </div>
-            <div className="rounded-xl bg-slate-50 p-4">
-              <p className="text-sm font-semibold text-slate-900">Patient</p>
-              <p className="mt-1 break-all text-sm text-slate-600">{session.patient_id}</p>
+              <p className="text-sm font-semibold text-slate-900">{role === 'doctor' ? 'Your doctor ID' : 'Your patient ID'}</p>
+              <p className="mt-1 break-all text-sm text-slate-600">{role === 'doctor' ? session.doctor_id : session.patient_id}</p>
             </div>
           </div>
 
@@ -188,37 +184,16 @@ export default function TelemedicineSession() {
 
         <aside className="space-y-6">
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-600">Join links</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-600">Your join link</p>
             <div className="mt-4 space-y-4 text-sm">
               <div>
-                <p className="font-semibold text-slate-900">Doctor link</p>
-                <p className="mt-1 break-all text-slate-600">{session.join_link_doctor || 'Not available yet'}</p>
-              </div>
-              <div>
-                <p className="font-semibold text-slate-900">Patient link</p>
-                <p className="mt-1 break-all text-slate-600">{session.join_link_patient || 'Not available yet'}</p>
+                <p className="font-semibold text-slate-900">{role === 'doctor' ? 'Doctor link' : 'Patient link'}</p>
+                <p className="mt-1 break-all text-slate-600">{role === 'doctor' ? session.join_link_doctor || 'Not available yet' : session.join_link_patient || 'Not available yet'}</p>
               </div>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-600">Event history</p>
-            <div className="mt-4 space-y-3">
-              {session.events?.length ? (
-                session.events.map((event, index) => (
-                  <div key={`${event.event_type}-${index}`} className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-                    <p className="font-semibold text-slate-900">{event.event_type}</p>
-                    <p className="mt-1">{event.created_at ? new Date(event.created_at).toLocaleString() : '—'}</p>
-                    {event.payload && <pre className="mt-2 overflow-x-auto whitespace-pre-wrap rounded-lg bg-white p-3 text-xs text-slate-600">{JSON.stringify(event.payload, null, 2)}</pre>}
-                  </div>
-                ))
-              ) : (
-                <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500">
-                  No events yet.
-                </div>
-              )}
-            </div>
-          </div>
+          {/* Event history removed per session overview UX requirement. */}
         </aside>
       </div>
     );

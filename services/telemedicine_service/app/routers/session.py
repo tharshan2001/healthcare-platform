@@ -1,6 +1,8 @@
+import os
 from datetime import datetime, timezone
 from uuid import UUID
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import and_, desc
 from sqlalchemy.orm import Session
@@ -37,7 +39,113 @@ def _utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def _build_room_name(doctor_id: UUID, patient_id: UUID) -> str:
+def _service_urls(env_var: str, *defaults: str) -> list[str]:
+    raw_value = os.getenv(env_var, "")
+    urls = [value.strip().rstrip("/") for value in raw_value.split(",") if value.strip()]
+    urls.extend(default.rstrip("/") for default in defaults)
+
+    unique_urls: list[str] = []
+    for url in urls:
+        if url and url not in unique_urls:
+            unique_urls.append(url)
+    return unique_urls
+
+
+def _fetch_remote_resource(urls: list[str], path: str) -> dict | None:
+    saw_connectivity_error = False
+
+    with httpx.Client(timeout=5.0) as client:
+        for base_url in urls:
+            try:
+                response = client.get(f"{base_url}{path}")
+            except httpx.RequestError:
+                saw_connectivity_error = True
+                continue
+
+            if response.status_code == 200:
+                payload = response.json()
+                if isinstance(payload, dict):
+                    return payload
+                return {"data": payload}
+
+            if response.status_code != 404:
+                raise HTTPException(
+                    status_code=502,
+                    detail=f"Validation service at {base_url} returned {response.status_code}",
+                )
+
+    if saw_connectivity_error:
+        raise HTTPException(status_code=503, detail="Validation service is unavailable")
+    return None
+
+
+def _require_registered_doctor(doctor_id: int) -> dict:
+    try:
+        doctor = _fetch_remote_resource(
+            _service_urls(
+                "DOCTOR_SERVICE_URLS",
+                "http://host.docker.internal:8002",
+                "http://localhost:8002",
+            ),
+            f"/doctors/{doctor_id}",
+        )
+    except HTTPException as exc:
+        if exc.status_code == 503 and not settings.EXTERNAL_VALIDATION_STRICT:
+            return {"id": doctor_id, "validation": "skipped_unavailable"}
+        raise
+
+    if not doctor:
+        raise HTTPException(status_code=404, detail=f"Doctor {doctor_id} not found")
+    return doctor
+
+
+def _require_registered_patient(patient_id: int) -> dict:
+    try:
+        patient = _fetch_remote_resource(
+            _service_urls(
+                "PATIENT_SERVICE_URLS",
+                "http://host.docker.internal:8001",
+                "http://localhost:8001",
+            ),
+            f"/patients/{patient_id}",
+        )
+    except HTTPException as exc:
+        if exc.status_code == 503 and not settings.EXTERNAL_VALIDATION_STRICT:
+            return {"id": patient_id, "validation": "skipped_unavailable"}
+        raise
+
+    if not patient:
+        raise HTTPException(status_code=404, detail=f"Patient {patient_id} not found")
+    return patient
+
+
+def _require_registered_appointment(appointment_id: int) -> dict:
+    try:
+        appointment = _fetch_remote_resource(
+            _service_urls(
+                "APPOINTMENT_SERVICE_URLS",
+                "http://host.docker.internal:8003",
+                "http://localhost:8003",
+            ),
+            f"/appointments/{appointment_id}",
+        )
+    except HTTPException as exc:
+        if exc.status_code == 503 and not settings.EXTERNAL_VALIDATION_STRICT:
+            return {"id": appointment_id, "validation": "skipped_unavailable"}
+        raise
+
+    if not appointment:
+        raise HTTPException(status_code=404, detail=f"Appointment {appointment_id} not found")
+    return appointment
+
+
+def _scope_filter(query, role: ParticipantRole, participant_id: int):
+    if role == ParticipantRole.DOCTOR:
+        return query.filter(TelemedicineSession.doctor_id == participant_id)
+    return query.filter(TelemedicineSession.patient_id == participant_id)
+
+
+def _build_room_name(doctor_id: int, patient_id: int) -> str:
     timestamp = int(_utc_now().timestamp())
     return f"{settings.JITSI_ROOM_PREFIX}-d{str(doctor_id)[:8]}-p{str(patient_id)[:8]}-{timestamp}"
 
@@ -47,7 +155,7 @@ def _emit_event(
     session_id: UUID,
     event_type: EventType,
     actor_role: str | None,
-    actor_id: UUID | None,
+    actor_id: int | None,
     payload: dict | None = None,
     is_system_event: bool = False,
 ) -> None:
@@ -62,7 +170,13 @@ def _emit_event(
     db.add(event)
 
 
-def _session_to_response(session: TelemedicineSession, events: list[SessionEvent]) -> SessionDetailResponse:
+def _session_to_response(
+    session: TelemedicineSession,
+    events: list[SessionEvent],
+    viewer_role: ParticipantRole | None = None,
+) -> SessionDetailResponse:
+    join_link_doctor = session.join_link_doctor if viewer_role == ParticipantRole.DOCTOR else None
+    join_link_patient = session.join_link_patient if viewer_role == ParticipantRole.PATIENT else None
     event_items = [
         SessionEventResponse(
             event_type=event.event_type.value,
@@ -85,8 +199,8 @@ def _session_to_response(session: TelemedicineSession, events: list[SessionEvent
         scheduled_end_at=session.scheduled_end_at,
         actual_start_at=session.actual_start_at,
         actual_end_at=session.actual_end_at,
-        join_link_doctor=session.join_link_doctor,
-        join_link_patient=session.join_link_patient,
+        join_link_doctor=join_link_doctor,
+        join_link_patient=join_link_patient,
         cancel_reason=session.cancel_reason,
         created_at=session.created_at,
         updated_at=session.updated_at,
@@ -102,6 +216,20 @@ async def create_session(request: SessionCreateRequest, db: Session = Depends(ge
     provider = request.provider.strip().lower()
     if provider not in {"jitsi", "twilio"}:
         raise HTTPException(status_code=400, detail="provider must be either 'jitsi' or 'twilio'")
+
+    _require_registered_doctor(request.doctor_id)
+    _require_registered_patient(request.patient_id)
+
+    if request.appointment_id is not None:
+        appointment = _require_registered_appointment(request.appointment_id)
+        appointment_doctor_id = appointment.get("doctor_id")
+        appointment_patient_id = appointment.get("patient_id")
+        if appointment_doctor_id is not None and appointment_patient_id is not None:
+            if int(appointment_doctor_id) != request.doctor_id or int(appointment_patient_id) != request.patient_id:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Appointment doctor and patient must match the telemedicine session participants",
+                )
 
     room_name = _build_room_name(request.doctor_id, request.patient_id)
 
@@ -144,8 +272,8 @@ async def create_session(request: SessionCreateRequest, db: Session = Depends(ge
 
 @router.get("/sessions", response_model=SessionListResponse)
 async def list_sessions(
-    doctor_id: UUID | None = Query(None),
-    patient_id: UUID | None = Query(None),
+    role: ParticipantRole = Query(...),
+    participant_id: int = Query(..., ge=1),
     status_filter: SessionStatus | None = Query(None, alias="status"),
     from_time: datetime | None = Query(None, alias="from"),
     to_time: datetime | None = Query(None, alias="to"),
@@ -153,12 +281,8 @@ async def list_sessions(
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
 ):
-    query = db.query(TelemedicineSession)
+    query = _scope_filter(db.query(TelemedicineSession), role, participant_id)
     filters = []
-    if doctor_id:
-        filters.append(TelemedicineSession.doctor_id == doctor_id)
-    if patient_id:
-        filters.append(TelemedicineSession.patient_id == patient_id)
     if status_filter:
         filters.append(TelemedicineSession.status == status_filter)
     if from_time:
@@ -181,16 +305,26 @@ async def list_sessions(
             .limit(20)
             .all()
         )
-        items.append(_session_to_response(session, events))
+        items.append(_session_to_response(session, events, viewer_role=role))
 
     return SessionListResponse(total=total, items=items)
 
 
 @router.get("/sessions/{session_id}", response_model=SessionDetailResponse)
-async def get_session(session_id: UUID, db: Session = Depends(get_db)):
+async def get_session(
+    session_id: UUID,
+    role: ParticipantRole = Query(...),
+    participant_id: int = Query(..., ge=1),
+    db: Session = Depends(get_db),
+):
     session = db.query(TelemedicineSession).filter(TelemedicineSession.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+
+    if role == ParticipantRole.DOCTOR and session.doctor_id != participant_id:
+        raise HTTPException(status_code=403, detail="This session is not assigned to the requesting doctor")
+    if role == ParticipantRole.PATIENT and session.patient_id != participant_id:
+        raise HTTPException(status_code=403, detail="This session is not assigned to the requesting patient")
 
     events = (
         db.query(SessionEvent)
@@ -198,7 +332,7 @@ async def get_session(session_id: UUID, db: Session = Depends(get_db)):
         .order_by(desc(SessionEvent.created_at))
         .all()
     )
-    return _session_to_response(session, events)
+    return _session_to_response(session, events, viewer_role=role)
 
 
 @router.post("/sessions/{session_id}/join", response_model=JoinSessionResponse)
@@ -301,6 +435,9 @@ async def start_session(session_id: UUID, request: StartSessionRequest, db: Sess
     if session.status != SessionStatus.SCHEDULED:
         raise HTTPException(status_code=400, detail=f"Session status must be scheduled, got {session.status.value}")
 
+    if request.actor_role != ParticipantRole.DOCTOR.value or request.actor_id != session.doctor_id:
+        raise HTTPException(status_code=403, detail="Only the assigned doctor can start this session")
+
     session.status = SessionStatus.LIVE
     session.actual_start_at = _utc_now()
     _emit_event(
@@ -326,6 +463,9 @@ async def complete_session(session_id: UUID, request: CompleteSessionRequest, db
     if session.status != SessionStatus.LIVE:
         raise HTTPException(status_code=400, detail=f"Session status must be live, got {session.status.value}")
 
+    if request.actor_role != ParticipantRole.DOCTOR.value or request.actor_id != session.doctor_id:
+        raise HTTPException(status_code=403, detail="Only the assigned doctor can complete this session")
+
     session.status = SessionStatus.COMPLETED
     session.actual_end_at = _utc_now()
     _emit_event(
@@ -350,6 +490,9 @@ async def cancel_session(session_id: UUID, request: CancelSessionRequest, db: Se
 
     if session.status == SessionStatus.COMPLETED:
         raise HTTPException(status_code=400, detail="Completed sessions cannot be cancelled")
+
+    if request.actor_role != ParticipantRole.DOCTOR.value or request.actor_id != session.doctor_id:
+        raise HTTPException(status_code=403, detail="Only the assigned doctor can cancel this session")
 
     session.status = SessionStatus.CANCELLED
     session.cancel_reason = request.reason

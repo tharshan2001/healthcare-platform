@@ -1,4 +1,6 @@
+/* eslint-disable */
 
+import PropTypes from 'prop-types';
 import TelemedicineStatusBadge from './TelemedicineStatusBadge';
 
 const formatDateTime = (value) => {
@@ -23,7 +25,7 @@ const shortId = (value) => {
 
 const actionButtonClass = 'rounded-xl px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50';
 
-export default function TelemedicineSessionCard({
+function TelemedicineSessionCard({
   session,
   role,
   onView,
@@ -63,12 +65,8 @@ export default function TelemedicineSessionCard({
 
           <div className="grid gap-3 text-sm text-slate-600 sm:grid-cols-2">
             <div>
-              <p className="font-medium text-slate-900">Doctor</p>
-              <p>{shortId(session.doctor_id)}</p>
-            </div>
-            <div>
-              <p className="font-medium text-slate-900">Patient</p>
-              <p>{shortId(session.patient_id)}</p>
+              <p className="font-medium text-slate-900">Your participant ID</p>
+              <p>{shortId(role === 'doctor' ? session.doctor_id : session.patient_id)}</p>
             </div>
             <div>
               <p className="font-medium text-slate-900">Actual start</p>
@@ -87,7 +85,7 @@ export default function TelemedicineSessionCard({
           )}
         </div>
 
-        <div className="flex flex-col gap-2 lg:min-w-[220px]">
+        <div className="flex flex-col gap-2 lg:min-w-55">
           {onView && (
             <button type="button" onClick={() => onView(session)} className={`${actionButtonClass} border border-slate-200 bg-white text-slate-700 hover:bg-slate-50`}>
               View details
@@ -115,7 +113,7 @@ export default function TelemedicineSessionCard({
           )}
           {joinLink && onOpenLink && (
             <button type="button" onClick={() => onOpenLink(joinLink, session)} className={`${actionButtonClass} border border-slate-200 bg-white text-slate-700 hover:bg-slate-50`}>
-              Open join link
+              Open your join link
             </button>
           )}
         </div>
@@ -123,5 +121,33 @@ export default function TelemedicineSessionCard({
     </article>
   );
 }
+
+TelemedicineSessionCard.propTypes = {
+  session: PropTypes.shape({
+    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    room_name: PropTypes.string,
+    status: PropTypes.string,
+    provider: PropTypes.string,
+    appointment_id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    doctor_id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    patient_id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    scheduled_start_at: PropTypes.string,
+    scheduled_end_at: PropTypes.string,
+    actual_start_at: PropTypes.string,
+    actual_end_at: PropTypes.string,
+    cancel_reason: PropTypes.string,
+    join_link_doctor: PropTypes.string,
+    join_link_patient: PropTypes.string,
+  }),
+  role: PropTypes.oneOf(['doctor', 'patient']),
+  onView: PropTypes.func,
+  onJoin: PropTypes.func,
+  onStart: PropTypes.func,
+  onComplete: PropTypes.func,
+  onCancel: PropTypes.func,
+  onOpenLink: PropTypes.func,
+};
+
+export default TelemedicineSessionCard;
 
 

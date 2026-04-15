@@ -1,4 +1,4 @@
-
+import PropTypes from 'prop-types';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-hot-toast';
 
@@ -58,7 +58,7 @@ export default function TelemedicineJoinModal({
     try {
       const result = await onJoin({
         session,
-        role: form.role,
+        role: defaultRole,
         participantId: form.participantId.trim(),
         displayName: form.displayName.trim(),
       });
@@ -96,13 +96,13 @@ export default function TelemedicineJoinModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
       <div className="max-h-[90vh] w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl">
-        <div className="border-b border-slate-200 bg-gradient-to-r from-blue-600 to-cyan-600 px-6 py-5 text-white">
+        <div className="border-b border-slate-200 bg-linear-to-r from-blue-600 to-cyan-600 px-6 py-5 text-white">
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-100">Telemedicine</p>
               <h2 className="mt-1 text-2xl font-bold">{title}</h2>
               <p className="mt-1 text-sm text-blue-100">
-                Provider: {session.provider || 'jitsi'} · Status: {String(session.status || '').toUpperCase()}
+                Provider: {session.provider || 'jitsi'} · Status: {String(session.status || '').toUpperCase()} · Role: {String(defaultRole).toUpperCase()}
               </p>
             </div>
             <button
@@ -126,7 +126,7 @@ export default function TelemedicineJoinModal({
                 </div>
                 <div>
                   <p className="font-medium text-slate-900">Join link</p>
-                  <p className="break-all">{session.join_link_doctor || session.join_link_patient || 'Will be generated after joining'}</p>
+                  <p className="break-all">{defaultRole === 'doctor' ? session.join_link_doctor || 'Will be generated after joining' : session.join_link_patient || 'Will be generated after joining'}</p>
                 </div>
                 <div>
                   <p className="font-medium text-slate-900">Scheduled start</p>
@@ -161,17 +161,9 @@ export default function TelemedicineJoinModal({
               </label>
             </div>
 
-            <label className="space-y-2 text-sm font-medium text-slate-700">
-              <span>Role</span>
-              <select
-                value={form.role}
-                onChange={(e) => setForm((current) => ({ ...current, role: e.target.value }))}
-                className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-              >
-                <option value="patient">Patient</option>
-                <option value="doctor">Doctor</option>
-              </select>
-            </label>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+              Joining as <span className="font-semibold capitalize text-slate-900">{defaultRole}</span>
+            </div>
 
             {joinResult === null ? (
               <button
@@ -266,5 +258,23 @@ export default function TelemedicineJoinModal({
     </div>
   );
 }
+
+TelemedicineJoinModal.propTypes = {
+  isOpen: PropTypes.bool,
+  session: PropTypes.shape({
+    room_name: PropTypes.string,
+    provider: PropTypes.string,
+    status: PropTypes.string,
+    join_link_doctor: PropTypes.string,
+    join_link_patient: PropTypes.string,
+    scheduled_start_at: PropTypes.string,
+    scheduled_end_at: PropTypes.string,
+  }),
+  defaultRole: PropTypes.oneOf(['doctor', 'patient']),
+  defaultParticipantId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  defaultDisplayName: PropTypes.string,
+  onClose: PropTypes.func.isRequired,
+  onJoin: PropTypes.func.isRequired,
+};
 
 

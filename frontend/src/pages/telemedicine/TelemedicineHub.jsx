@@ -1,5 +1,5 @@
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { telemedicineAPI } from '../../api/telemedicine';
@@ -11,9 +11,16 @@ import TelemedicineStatusBadge from '../../components/telemedicine/TelemedicineS
 const STATUS_OPTIONS = ['', 'scheduled', 'live', 'completed', 'cancelled'];
 
 const getStoredRole = (queryRole) => {
+  // Respect explicit navigation intent from dashboard links.
   if (queryRole === 'doctor' || queryRole === 'patient') return queryRole;
-  if (localStorage.getItem('doctor_token')) return 'doctor';
-  if (localStorage.getItem('patient_token')) return 'patient';
+
+  const hasDoctorToken = Boolean(localStorage.getItem('doctor_token'));
+  const hasPatientToken = Boolean(localStorage.getItem('patient_token'));
+
+  if (hasDoctorToken && !hasPatientToken) return 'doctor';
+  if (hasPatientToken && !hasDoctorToken) return 'patient';
+  if (hasDoctorToken) return 'doctor';
+  if (hasPatientToken) return 'patient';
   return 'patient';
 };
 
@@ -95,25 +102,23 @@ export default function TelemedicineHub() {
     setRole(getStoredRole(searchParams.get('role')));
   }, [searchParams]);
 
-  useEffect(() => {
-    loadSessions();
-  }, [role, statusFilter]);
-
-  const loadSessions = async () => {
+  const loadSessions = useCallback(async () => {
     setLoading(true);
     setError('');
 
     try {
-      const filters = {
-        status: statusFilter,
-      };
-
       const storedParticipantId = getParticipantId(role);
-      if (storedParticipantId) {
-        filters[`${role}_id`] = storedParticipantId;
+      if (!storedParticipantId) {
+        setSessions([]);
+        setError(role === 'doctor' ? 'Please sign in to a doctor account first.' : 'Please sign in to a patient account first.');
+        return;
       }
 
-      const response = await telemedicineAPI.listSessions(filters);
+      const response = await telemedicineAPI.listSessions({
+        role,
+        participant_id: storedParticipantId,
+        status: statusFilter,
+      });
       setSessions(Array.isArray(response?.items) ? response.items : []);
     } catch (err) {
       setError(err?.message || 'Unable to load sessions');
@@ -121,12 +126,16 @@ export default function TelemedicineHub() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [role, statusFilter]);
+
+  useEffect(() => {
+    loadSessions();
+  }, [loadSessions]);
 
   const refreshCurrent = async () => {
     await loadSessions();
     if (selectedSession) {
-      const refreshed = await telemedicineAPI.getSession(selectedSession.id);
+      const refreshed = await telemedicineAPI.getSession(selectedSession.id, { role, participant_id: participantId });
       setSelectedSession(refreshed);
     }
   };
@@ -140,6 +149,10 @@ export default function TelemedicineHub() {
       if (result?.session_id) {
         navigate(`/telemedicine/sessions/${result.session_id}`);
       }
+    } catch (err) {
+      const message = err?.message || 'Unable to create telemedicine session';
+      setError(message);
+      toast.error(message);
     } finally {
       setSubmitting(false);
     }
@@ -158,7 +171,7 @@ export default function TelemedicineHub() {
 
   const handleStartSession = async (session) => {
     await telemedicineAPI.startSession(session.id, {
-      actor_role: 'doctor',
+      actor_role: role,
       actor_id: participantId || null,
     });
     toast.success('Session started');
@@ -167,7 +180,7 @@ export default function TelemedicineHub() {
 
   const handleCompleteSession = async (session) => {
     await telemedicineAPI.completeSession(session.id, {
-      actor_role: 'doctor',
+      actor_role: role,
       actor_id: participantId || null,
     });
     toast.success('Session completed');
@@ -254,33 +267,15 @@ export default function TelemedicineHub() {
             <h1 className="text-2xl font-bold">Session Hub</h1>
           </button>
           <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 capitalize">
+              {role} view
+            </span>
             <button
               type="button"
-              onClick={() => setRole('patient')}
-              className={`rounded-full px-4 py-2 text-sm font-semibold transition ${role === 'patient' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
-            >
-              Patient view
-            </button>
-            <button
-              type="button"
-              onClick={() => setRole('doctor')}
-              className={`rounded-full px-4 py-2 text-sm font-semibold transition ${role === 'doctor' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
-            >
-              Doctor view
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate('/patient/dashboard')}
+              onClick={() => navigate(role === 'doctor' ? '/doctor/dashboard' : '/patient/dashboard')}
               className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
             >
-              Patient dashboard
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate('/doctor/dashboard')}
-              className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-            >
-              Doctor dashboard
+              Back to dashboard
             </button>
           </div>
         </div>
@@ -308,7 +303,11 @@ export default function TelemedicineHub() {
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-600">Sessions</p>
                   <h2 className="mt-1 text-2xl font-bold text-slate-900">{role === 'doctor' ? 'Manage consultations' : 'Join your consultations'}</h2>
-                  <p className="mt-1 text-sm text-slate-600">Filter by status and open the session you need.</p>
+                  <p className="mt-1 text-sm text-slate-600">
+                    {role === 'doctor'
+                      ? 'Create and manage sessions for your registered patients.'
+                      : 'View only the sessions created for you as a patient.'}
+                  </p>
                 </div>
 
                 <label className="space-y-2 text-sm font-medium text-slate-700">
@@ -357,7 +356,7 @@ export default function TelemedicineHub() {
             )}
 
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-600">Current identity</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-600">Current identity</p>
               <h3 className="mt-2 text-xl font-bold text-slate-900">{displayName}</h3>
               <dl className="mt-4 space-y-3 text-sm text-slate-600">
                 <div className="flex items-center justify-between gap-4">
@@ -413,27 +412,16 @@ export default function TelemedicineHub() {
                 <div className="mt-2"><TelemedicineStatusBadge status={selectedSession.status} /></div>
               </div>
               <div className="rounded-xl bg-slate-50 p-4">
-                <p className="text-sm font-semibold text-slate-900">Doctor ID</p>
-                <p className="mt-1 break-all text-sm text-slate-600">{selectedSession.doctor_id}</p>
-              </div>
-              <div className="rounded-xl bg-slate-50 p-4">
-                <p className="text-sm font-semibold text-slate-900">Patient ID</p>
-                <p className="mt-1 break-all text-sm text-slate-600">{selectedSession.patient_id}</p>
+                <p className="text-sm font-semibold text-slate-900">{role === 'doctor' ? 'Your doctor ID' : 'Your patient ID'}</p>
+                <p className="mt-1 break-all text-sm text-slate-600">{role === 'doctor' ? selectedSession.doctor_id : selectedSession.patient_id}</p>
               </div>
             </div>
 
             <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-sm font-semibold text-slate-900">Join links</p>
-              <div className="mt-3 grid gap-3 md:grid-cols-2">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Doctor</p>
-                  <p className="mt-1 break-all text-sm text-slate-600">{selectedSession.join_link_doctor || 'Not generated yet'}</p>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Patient</p>
-                  <p className="mt-1 break-all text-sm text-slate-600">{selectedSession.join_link_patient || 'Not generated yet'}</p>
-                </div>
-              </div>
+              <p className="text-sm font-semibold text-slate-900">Your join link</p>
+              <p className="mt-3 break-all text-sm text-slate-600">
+                {role === 'doctor' ? selectedSession.join_link_doctor || 'Not generated yet' : selectedSession.join_link_patient || 'Not generated yet'}
+              </p>
             </div>
 
             <div className="mt-6 flex flex-wrap gap-3">
@@ -453,20 +441,7 @@ export default function TelemedicineHub() {
               </button>
             </div>
 
-            {selectedSession.events?.length > 0 && (
-              <div className="mt-6">
-                <h4 className="text-lg font-semibold text-slate-900">Event history</h4>
-                <div className="mt-3 space-y-3">
-                  {selectedSession.events.map((event, index) => (
-                    <div key={`${event.event_type}-${index}`} className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
-                      <p className="font-semibold text-slate-900">{event.event_type}</p>
-                      <p className="mt-1">{event.created_at ? new Date(event.created_at).toLocaleString() : '—'}</p>
-                      {event.payload && <pre className="mt-2 overflow-x-auto whitespace-pre-wrap rounded-lg bg-slate-50 p-3 text-xs text-slate-600">{JSON.stringify(event.payload, null, 2)}</pre>}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* Event history removed per session overview UX requirement. */}
           </div>
         </div>
       )}
