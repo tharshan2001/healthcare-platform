@@ -37,7 +37,7 @@ function SymptomChecker() {
     setLoading(true)
 
     try {
-      const response = await fetch('http://localhost:8000/api/chat', {
+      const response = await fetch('http://localhost:8007/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: userMessage })
@@ -47,7 +47,7 @@ function SymptomChecker() {
     } catch {
       setMessages(prev => [...prev, {
         role: 'assistant', 
-        content: '⚠️ Couldn\'t reach server. Please ensure backend is running on port 8000.' 
+        content: '⚠️ Couldn\'t reach server. Please ensure backend is running on port 8007.' 
       }])
     }
     setLoading(false)

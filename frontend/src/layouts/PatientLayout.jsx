@@ -1,15 +1,16 @@
 import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { patientAPI } from '../api/patient';
+import { Icons } from '../components/Icons';
 
 const menuItems = [
-  { path: '/patient/dashboard', icon: '🏠', label: 'Dashboard' },
-  { path: '/patient/doctors', icon: '👨‍⚕️', label: 'Find Doctors' },
-  { path: '/patient/appointments', icon: '📅', label: 'Appointments' },
-  { path: '/patient/records', icon: '📋', label: 'Medical Records' },
-  { path: '/patient/telemedicine', icon: '📹', label: 'Telemedicine' },
-  { path: '/patient/symptoms', icon: '🤒', label: 'Symptom Checker' },
-  { path: '/patient/profile', icon: '👤', label: 'Profile' },
+  { path: '/patient/dashboard', icon: 'home', label: 'Dashboard' },
+  { path: '/patient/doctors', icon: 'doctor', label: 'Find Doctors' },
+  { path: '/patient/appointments', icon: 'calendar', label: 'Appointments' },
+  { path: '/patient/records', icon: 'clipboard', label: 'Medical Records' },
+  { path: '/patient/telemedicine', icon: 'video', label: 'Telemedicine' },
+  { path: '/patient/symptoms', icon: 'health', label: 'Symptom Checker' },
+  { path: '/patient/profile', icon: 'user', label: 'Profile' },
 ];
 
 export default function PatientLayout() {
@@ -37,6 +38,20 @@ export default function PatientLayout() {
     navigate('/patient/login');
   };
 
+  const IconComponent = ({ name }) => {
+    const iconMap = {
+      home: Icons.home,
+      doctor: Icons.doctor,
+      calendar: Icons.calendar,
+      clipboard: Icons.clipboard,
+      video: Icons.video,
+      health: Icons.health,
+      user: Icons.user,
+    };
+    const Icon = iconMap[name];
+    return Icon ? <Icon /> : null;
+  };
+
   return (
     <div className="flex min-h-screen" style={{ backgroundColor: '#f5f5f5' }}>
       <aside
@@ -59,13 +74,7 @@ export default function PatientLayout() {
             className="p-2 rounded hover:bg-gray-100 transition-colors"
             style={{ color: '#363636' }}
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              {sidebarOpen ? (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-              ) : (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-              )}
-            </svg>
+            <Icons.menu />
           </button>
         </div>
 
@@ -76,9 +85,7 @@ export default function PatientLayout() {
               to={item.path}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded transition-all duration-200 ${
-                  isActive
-                    ? 'font-medium'
-                    : ''
+                  isActive ? 'font-medium' : ''
                 }`
               }
               style={({ isActive }) => ({
@@ -86,7 +93,7 @@ export default function PatientLayout() {
                 color: isActive ? '#ffffff' : '#363636',
               })}
             >
-              <span className="text-lg">{item.icon}</span>
+              <span className="text-lg"><IconComponent name={item.icon} /></span>
               {sidebarOpen && <span className="text-sm">{item.label}</span>}
             </NavLink>
           ))}
@@ -105,7 +112,7 @@ export default function PatientLayout() {
             className="flex items-center gap-3 px-3 py-2.5 w-full rounded transition-colors hover:bg-red-50"
             style={{ color: '#ee1d36' }}
           >
-            <span className="text-lg">🚪</span>
+            <Icons.logout />
             {sidebarOpen && <span className="text-sm">Logout</span>}
           </button>
         </div>

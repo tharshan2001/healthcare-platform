@@ -156,17 +156,30 @@ def book_slot(
             raise HTTPException(status_code=409, detail="Slot was locked by another patient")
     
     try:
-        with httpx.Client() as client:
+        with httpx.Client(timeout=15.0) as client:
+            # Get patient email/phone from patient service
+            patient_url = f"http://localhost:8001/patients/{request.patient_id}"
+            patient_response = client.get(patient_url)
+            patient_data = patient_response.json() if patient_response.status_code == 200 else {}
+            print(f"Patient data: {patient_data}")
+            
+            appt_payload = {
+                "patient_id": request.patient_id,
+                "doctor_id": request.doctor_id,
+                "appointment_date": request.date,
+                "appointment_time": request.time,
+                "reason_for_visit": request.reason,
+                "patient_email": patient_data.get("email", "patient@example.com"),
+                "patient_phone": patient_data.get("phone", "0712345678")
+            }
+            print(f"Creating appointment with: {appt_payload}")
+            
             response = client.post(
                 f"{APPOINTMENT_SERVICE_URL}/appointments/appointments",
-                json={
-                    "patient_id": request.patient_id,
-                    "doctor_id": request.doctor_id,
-                    "appointment_date": request.date,
-                    "appointment_time": request.time,
-                    "reason_for_visit": request.reason
-                }
+                json=appt_payload
             )
+            print(f"Appointment response: {response.status_code}, {response.text}")
+            
             if response.status_code == 200:
                 slot.is_booked = True
                 slot.locked_at = now

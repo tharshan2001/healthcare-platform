@@ -31,10 +31,10 @@ def get_current_patient(credentials: HTTPAuthorizationCredentials = Depends(secu
         raise HTTPException(status_code=404, detail="Patient not found")
     return patient
 
-app.include_router(auth.router, prefix="/auth", tags=["auth"])
-app.include_router(records.router, prefix="/records", tags=["records"])
-app.include_router(doctors.router, prefix="/doctors", tags=["doctors"])
-app.include_router(appointments.router, prefix="/appointments", tags=["appointments"])
+app.include_router(auth, prefix="/auth", tags=["auth"])
+app.include_router(records, prefix="/records", tags=["records"])
+app.include_router(doctors, prefix="/doctors", tags=["doctors"])
+app.include_router(appointments, prefix="/appointments", tags=["appointments"])
 
 @app.get("/")
 def root():

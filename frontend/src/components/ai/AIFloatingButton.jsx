@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import botImage from '../../assets/bot.png'
 
-const API_BASE = import.meta.env.VITE_AI_SYMPTOM_API || 'http://localhost:8000'
+const API_BASE = import.meta.env.VITE_AI_SYMPTOM_API || 'http://localhost:8007'
 
 const BotAvatar = () => (
   <div className="w-10 h-10 rounded-full flex items-center justify-center text-xl shrink-0 shadow-md overflow-hidden p-1">

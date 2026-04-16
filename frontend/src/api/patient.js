@@ -5,6 +5,8 @@ const getAuthHeader = () => {
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
+const NOTIFICATION_API = 'http://localhost:8006';
+
 export const patientAPI = {
   register: async (data) => {
     const res = await fetch(`${API_BASE}/auth/register`, {
@@ -171,18 +173,18 @@ export const patientAPI = {
 
   getNotifications: async () => {
     const userId = localStorage.getItem('patient_id') || 1;
-    const res = await fetch(`http://localhost:8010/notifications/${userId}`);
+    const res = await fetch(`${NOTIFICATION_API}/notifications/${userId}`);
     return res.json();
   },
 
   getUnreadNotifications: async () => {
     const userId = localStorage.getItem('patient_id') || 1;
-    const res = await fetch(`http://localhost:8010/notifications/unread/${userId}`);
+    const res = await fetch(`${NOTIFICATION_API}/notifications/unread/${userId}`);
     return res.json();
   },
 
   markNotificationRead: async (id) => {
-    const res = await fetch(`http://localhost:8010/notifications/${id}`, {
+    const res = await fetch(`${NOTIFICATION_API}/notifications/${id}`, {
       method: 'PUT',
     });
     return res.json();

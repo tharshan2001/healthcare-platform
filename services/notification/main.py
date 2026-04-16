@@ -22,5 +22,5 @@ def health_check():
 if __name__ == "__main__":
     import uvicorn
     import os
-    port = int(os.getenv("NOTIFICATION_PORT", 8005))
+    port = int(os.getenv("NOTIFICATION_PORT", 8006))
     uvicorn.run(app, host="0.0.0.0", port=port)

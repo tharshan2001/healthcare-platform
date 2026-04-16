@@ -16,7 +16,7 @@ from utils.stripe_client import create_checkout_session
 
 router = APIRouter(prefix="/payments", tags=["Payments"])
 
-NOTIFICATION_SERVICE_URL = os.getenv("NOTIFICATION_SERVICE_URL", "http://localhost:8005")
+NOTIFICATION_SERVICE_URL = os.getenv("NOTIFICATION_SERVICE_URL", "http://localhost:8006")
 
 
 def send_payment_notification(user_id: int, message: str, email: str, phone: str):

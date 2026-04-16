@@ -81,14 +81,16 @@ def create_appointment(
     if appointment.patient_email:
         doctor_name = appointment.doctor_name or "your doctor"
         message = f"Your appointment with Dr. {doctor_name} is scheduled for {appointment.appointment_date} at {appointment.appointment_time}."
+        print(f"SENDING NOTIFICATION to patient {appointment.patient_id}: {message}")
         try:
-            send_notification(
+            result = send_notification(
                 user_id=appointment.patient_id,
                 message=message,
                 notification_type="appointment",
                 email=appointment.patient_email,
                 phone=appointment.patient_phone or ""
             )
+            print(f"Notification result: {result}")
         except Exception as e:
             print(f"Failed to send notification: {e}")
     

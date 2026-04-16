@@ -3,7 +3,8 @@ FROM python:3.11-slim
 WORKDIR /app
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --default-timeout=100 --upgrade pip -r requirements.txt || \
+    pip install --no-cache-dir --default-timeout=200 --upgrade pip -r requirements.txt
 
 COPY . .
 

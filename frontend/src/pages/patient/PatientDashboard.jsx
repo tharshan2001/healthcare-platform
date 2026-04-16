@@ -13,7 +13,7 @@ export default function PatientDashboard() {
   const [showBooking, setShowBooking] = useState(null);
   const [bookingData, setBookingData] = useState({ appointment_date: '', appointment_time: '', reason_for_visit: '' });
   const [availability, setAvailability] = useState([]);
-  const [activeTab, setActiveTab] = useState('doctors');
+  const [activeTab, setActiveTab] = useState('appointments');
   const [showNotifications, setShowNotifications] = useState(false);
   const navigate = useNavigate();
 
@@ -23,7 +23,10 @@ export default function PatientDashboard() {
 
   const loadData = async () => {
     try {
+      console.log('Loading patient data...');
       const profileData = await patientAPI.getProfile();
+      console.log('Profile:', profileData);
+      
       if (profileData.detail === 'Invalid token') {
         navigate('/patient/login');
         return;
@@ -34,18 +37,26 @@ export default function PatientDashboard() {
       }
       setProfile(profileData);
       localStorage.setItem('patient_id', profileData.id);
+      console.log('Patient ID:', profileData.id);
       
-      const [apt, rec, docs, notif] = await Promise.all([
-        patientAPI.getAppointments(),
+      const allAppointments = await patientAPI.getAppointments();
+      console.log('All appointments:', allAppointments);
+      
+      const myAppointments = (allAppointments || []); // Show all for now
+      console.log('My appointments:', myAppointments);
+      
+      const [rec, docs] = await Promise.all([
         patientAPI.getRecords(),
-        patientAPI.getDoctors(),
-        patientAPI.getNotifications()
+        patientAPI.getDoctors()
       ]);
-      setAppointments(apt?.filter(a => a.patient_id === profileData.id) || []);
+      
+      setAppointments(myAppointments);
       setRecords(rec || []);
       setDoctors(docs || []);
-      setNotifications(notif || []);
-      setUnreadCount((notif || []).filter(n => n.status === 'unread').length);
+      
+      // No notifications - empty for now
+      setNotifications([]);
+      setUnreadCount(0);
     } catch (error) {
       console.error('Error loading data:', error);
     }

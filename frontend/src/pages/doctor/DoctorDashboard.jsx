@@ -31,7 +31,7 @@ export default function DoctorDashboard() {
         doctorAPI.getMyAvailability(),
         doctorAPI.getMyPrescriptions(),
         doctorAPI.getMyAppointments(),
-        fetch(`http://localhost:8005/notifications/${profileData.id}`).then(r => r.json()).catch(() => []),
+        fetch(`http://localhost:8006/notifications/${profileData.id}`).then(r => r.json()).catch(() => []),
       ]);
       setAvailability(avail);
       setPrescriptions(pres);

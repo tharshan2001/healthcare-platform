@@ -9,12 +9,12 @@ NOTIFICATION_SERVICE_URL = os.getenv("NOTIFICATION_SERVICE_URL", "http://localho
 def send_notification(user_id: int, message: str, notification_type: str, email: str, phone: str):
     with httpx.Client(timeout=10.0) as client:
         try:
+            # Sync endpoint - sends SMS immediately
             response = client.post(
-                f"{NOTIFICATION_SERVICE_URL}/notifications/",
-                json={
-                    "user_id": user_id,
+                f"{NOTIFICATION_SERVICE_URL}/notifications/sync/{user_id}",
+                params={
                     "message": message,
-                    "type": notification_type,
+                    "notification_type": notification_type,
                     "email": email,
                     "phone": phone
                 }

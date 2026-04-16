@@ -8,7 +8,7 @@ from utils.auth import hash_password, verify_password, create_access_token, deco
 from utils.notification_client import send_notification
 import os
 
-NOTIFICATION_SERVICE_URL = os.getenv("NOTIFICATION_SERVICE_URL", "http://localhost:8004")
+NOTIFICATION_SERVICE_URL = os.getenv("NOTIFICATION_SERVICE_URL", "http://localhost:8006")
 
 router = APIRouter()
 
