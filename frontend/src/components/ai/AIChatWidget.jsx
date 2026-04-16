@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
-import botImage from '../../assets/bot.svg'
+import botImage from '../assets/bot.png'
+
+const API_BASE = import.meta.env.VITE_AI_SYMPTOM_API || 'http://localhost:8000'
 
 const BotAvatar = () => (
   <div className="w-10 h-10 rounded-full flex items-center justify-center text-xl shrink-0 shadow-md overflow-hidden p-1">
@@ -13,7 +15,7 @@ const UserAvatar = () => (
   </div>
 )
 
-function SymptomChecker() {
+export default function AIChatWidget() {
   const [messages, setMessages] = useState([
     { role: 'assistant', content: "Hello! I'm Dr. AI, your medical symptom assistant. Describe your symptoms (e.g., 'headache, fever, cough') and I'll suggest possible conditions. Remember to consult a doctor for proper diagnosis." }
   ])
@@ -37,17 +39,17 @@ function SymptomChecker() {
     setLoading(true)
 
     try {
-      const response = await fetch('http://localhost:8000/api/chat', {
+      const response = await fetch(`${API_BASE}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: userMessage })
       })
       const data = await response.json()
       setMessages(prev => [...prev, { role: 'assistant', content: data.response }])
-    } catch {
-      setMessages(prev => [...prev, {
+    } catch (error) {
+      setMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: '⚠️ Couldn\'t reach server. Please ensure backend is running on port 8000.' 
+        content: '⚠️ Couldn\'t reach server. Please ensure backend is running.' 
       }])
     }
     setLoading(false)
@@ -124,5 +126,3 @@ function SymptomChecker() {
     </div>
   )
 }
-
-export default SymptomChecker

@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
+import AIFloatingButton from './components/ai/AIFloatingButton';
 import Landing from './pages/Landing';
 import DoctorSearch from './pages/DoctorSearch';
 import DoctorLogin from './pages/doctor/DoctorLogin';
@@ -9,6 +10,8 @@ import PatientLogin from './pages/patient/PatientLogin';
 import PatientRegister from './pages/patient/PatientRegister';
 import PatientDashboard from './pages/patient/PatientDashboard';
 import SymptomChecker from './pages/patient/SymptomChecker';
+import TelemedicineHub from './pages/telemedicine/TelemedicineHub';
+import TelemedicineSession from './pages/telemedicine/TelemedicineSession';
 
 function App() {
   return (
@@ -37,6 +40,7 @@ function App() {
           },
         }}
       />
+      <AIFloatingButton />
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/doctor-search" element={<DoctorSearch />} />
@@ -47,6 +51,8 @@ function App() {
         <Route path="/patient/register" element={<PatientRegister />} />
         <Route path="/patient/dashboard" element={<PatientDashboard />} />
         <Route path="/patient/symptoms" element={<SymptomChecker />} />
+        <Route path="/telemedicine" element={<TelemedicineHub />} />
+        <Route path="/telemedicine/sessions/:sessionId" element={<TelemedicineSession />} />
       </Routes>
     </BrowserRouter>
   );

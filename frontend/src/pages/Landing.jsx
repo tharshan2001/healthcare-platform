@@ -244,27 +244,19 @@ export default function Landing() {
             </div>
             
             {/* Nav Links */}
-            <div className="flex items-center gap-4">
-              {isLoggedIn() ? (
-                <a href="/patient/dashboard" className="text-gray-600 hover:text-blue-600 font-medium transition">
-                  My Appointments
-                </a>
-              ) : (
-                <>
-                  <button 
-                    onClick={() => setShowLoginModal(true)} 
-                    className="text-gray-600 hover:text-blue-600 font-medium transition"
-                  >
-                    Sign In
-                  </button>
-                  <a 
-                    href="/patient/register" 
-                    className="bg-blue-600 text-white px-5 py-2.5 rounded-full font-medium hover:bg-blue-700 transition shadow-md hover:shadow-lg"
-                  >
-                    Get Started
-                  </a>
-                </>
-              )}
+            <div className="flex flex-wrap items-center gap-4">
+              <button
+                onClick={() => setShowLoginModal(true)}
+                className="rounded-full border border-gray-200 bg-white px-4 py-2 text-gray-700 hover:border-blue-400 hover:text-blue-600 font-medium transition shadow-sm"
+              >
+                Sign In
+              </button>
+              <a
+                href="/patient/register"
+                className="bg-blue-600 text-white px-5 py-2.5 rounded-full font-medium hover:bg-blue-700 transition shadow-md hover:shadow-lg"
+              >
+                Get Started
+              </a>
             </div>
           </div>
         </div>
