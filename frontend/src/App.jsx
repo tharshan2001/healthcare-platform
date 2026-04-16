@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
+import AIFloatingButton from './components/ai/AIFloatingButton';
 import Landing from './pages/Landing';
 import DoctorSearch from './pages/DoctorSearch';
 import DoctorLogin from './pages/doctor/DoctorLogin';
@@ -39,6 +40,7 @@ function App() {
           },
         }}
       />
+      <AIFloatingButton />
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/doctor-search" element={<DoctorSearch />} />

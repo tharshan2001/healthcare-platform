@@ -6,8 +6,8 @@ Run from service folder:
 
 from uuid import uuid4
 
-from app.models.session import ParticipantRole
-from app.video_provider import get_video_provider
+from models.session import ParticipantRole
+from video_provider import get_video_provider
 
 
 def main() -> None:

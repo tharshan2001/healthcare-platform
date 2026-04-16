@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, Column, DateTime, Enum, ForeignKey, Integer, JSON, String, Text
+from sqlalchemy import Boolean, Column, DateTime, Enum, ForeignKey, JSON, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
@@ -37,9 +37,9 @@ class TelemedicineSession(Base):
     __tablename__ = "telemedicine_sessions"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    appointment_id = Column(Integer, nullable=True, index=True)
-    doctor_id = Column(Integer, nullable=False, index=True)
-    patient_id = Column(Integer, nullable=False, index=True)
+    appointment_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    doctor_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    patient_id = Column(UUID(as_uuid=True), nullable=False, index=True)
 
     provider = Column(String(40), nullable=False, default="jitsi")
     room_name = Column(String(120), nullable=False, unique=True, index=True)
@@ -88,7 +88,7 @@ class SessionParticipantAccess(Base):
         ),
         nullable=False,
     )
-    participant_id = Column(Integer, nullable=False, index=True)
+    participant_id = Column(UUID(as_uuid=True), nullable=False, index=True)
     access_token = Column(String(255), nullable=False, index=True)
     token_expires_at = Column(DateTime(timezone=True), nullable=False)
     last_joined_at = Column(DateTime(timezone=True), nullable=True)
@@ -115,13 +115,9 @@ class SessionEvent(Base):
         index=True,
     )
     actor_role = Column(String(40), nullable=True)
-    actor_id = Column(Integer, nullable=True)
+    actor_id = Column(UUID(as_uuid=True), nullable=True)
     event_payload = Column(JSON, nullable=True)
     is_system_event = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime(timezone=True), default=utcnow, index=True)
 
     session = relationship("TelemedicineSession", back_populates="events")
-
-
-
-

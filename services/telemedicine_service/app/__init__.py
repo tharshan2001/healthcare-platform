@@ -1,2 +1,0 @@
-# Telemedicine Service application package.
-
