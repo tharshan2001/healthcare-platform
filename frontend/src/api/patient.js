@@ -36,7 +36,11 @@ export const patientAPI = {
     const res = await fetch(`${API_BASE}/auth/profile`, {
       headers: { ...getAuthHeader() },
     });
-    return res.json();
+    if (!res.ok) {
+      return { detail: 'Invalid token' };
+    }
+    const data = await res.json();
+    return data;
   },
 
   updateProfile: async (data) => {
@@ -167,18 +171,18 @@ export const patientAPI = {
 
   getNotifications: async () => {
     const userId = localStorage.getItem('patient_id') || 1;
-    const res = await fetch(`http://localhost:8005/notifications/${userId}`);
+    const res = await fetch(`http://localhost:8010/notifications/${userId}`);
     return res.json();
   },
 
   getUnreadNotifications: async () => {
     const userId = localStorage.getItem('patient_id') || 1;
-    const res = await fetch(`http://localhost:8005/notifications/unread/${userId}`);
+    const res = await fetch(`http://localhost:8010/notifications/unread/${userId}`);
     return res.json();
   },
 
   markNotificationRead: async (id) => {
-    const res = await fetch(`http://localhost:8005/notifications/${id}`, {
+    const res = await fetch(`http://localhost:8010/notifications/${id}`, {
       method: 'PUT',
     });
     return res.json();

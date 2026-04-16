@@ -1,7 +1,9 @@
 import httpx
 import os
+from dotenv import load_dotenv
 
-NOTIFICATION_SERVICE_URL = os.getenv("NOTIFICATION_SERVICE_URL", "http://localhost:8005")
+load_dotenv()
+NOTIFICATION_SERVICE_URL = os.getenv("NOTIFICATION_SERVICE_URL", "http://localhost:8010")
 
 
 def send_notification(user_id: int, message: str, notification_type: str, email: str, phone: str):

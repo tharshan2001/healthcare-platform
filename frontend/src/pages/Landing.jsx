@@ -171,9 +171,11 @@ export default function Landing() {
     if (!lockedSlotId || !selectedDoctor || !selectedSlot) return;
     
     setProcessing(true);
-    toast.loading('Booking appointment...', { id: 'booking' });
+    toast.loading('Verifying payment & booking...', { id: 'booking' });
     
     try {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
       const result = await patientAPI.bookSlot(
         lockedSlotId,
         parseInt(localStorage.getItem('patient_id') || '1'),
@@ -192,7 +194,7 @@ export default function Landing() {
         setLockedSlotId(null);
         setTimeout(() => navigate('/patient/dashboard'), 1500);
       } else {
-        toast.error(result.detail || 'Failed to book appointment', { id: 'booking' });
+        toast.error(result.detail || 'Failed to book appointment. Please contact support.', { id: 'booking' });
         handlePaymentFailure();
       }
     } catch (err) {
@@ -600,6 +602,7 @@ export default function Landing() {
         }}
         doctor={selectedDoctor}
         slot={selectedSlot}
+        patientId={parseInt(localStorage.getItem('patient_id') || '0')}
         onSuccess={handlePaymentSuccess}
         onFailure={handlePaymentFailure}
         onReleaseSlot={async () => {
@@ -610,8 +613,6 @@ export default function Landing() {
             );
           }
         }}
-        processing={processing}
-        setProcessing={setProcessing}
       />
     </div>
   );

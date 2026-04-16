@@ -4,8 +4,8 @@ from datetime import datetime, timedelta, timezone
 from urllib.parse import quote
 from uuid import UUID
 
-from .config import settings
-from .models.session import ParticipantRole
+from config import settings
+from models.session import ParticipantRole
 
 
 class VideoProvider(ABC):

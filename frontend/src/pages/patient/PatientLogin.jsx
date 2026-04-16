@@ -14,6 +14,13 @@ export default function PatientLogin() {
     try {
       const result = await patientAPI.login({ email, password });
       if (result.access_token) {
+        // Get profile to save patient_id
+        const profile = await patientAPI.getProfile();
+        if (profile?.id) {
+          localStorage.setItem('patient_id', profile.id);
+          localStorage.setItem('patient_email', profile.email);
+          localStorage.setItem('patient_phone', profile.phone || '');
+        }
         navigate('/patient/dashboard');
       } else {
         setError(result.detail || 'Login failed');

@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import AIFloatingButton from './components/ai/AIFloatingButton';
@@ -16,6 +17,7 @@ import PatientDashboard from './pages/patient/PatientDashboard';
 import PatientLayout from './layouts/PatientLayout';
 
 import SymptomChecker from './pages/patient/SymptomChecker';
+import PaymentSuccess from './pages/PaymentSuccess';
 import TelemedicineHub from './pages/telemedicine/TelemedicineHub';
 import TelemedicineSession from './pages/telemedicine/TelemedicineSession';
 
@@ -36,18 +38,10 @@ function ProtectedDoctorRoute() {
 }
 
 function PublicPatientRoute() {
-  const token = localStorage.getItem('patient_token');
-  if (token) {
-    return <Navigate to="/patient/dashboard" replace />;
-  }
   return <Outlet />;
 }
 
 function PublicDoctorRoute() {
-  const token = localStorage.getItem('doctor_token');
-  if (token) {
-    return <Navigate to="/doctor/dashboard" replace />;
-  }
   return <Outlet />;
 }
 
@@ -120,6 +114,23 @@ function App() {
         
         <Route path="/telemedicine" element={<TelemedicineHub />} />
         <Route path="/telemedicine/sessions/:sessionId" element={<TelemedicineSession />} />
+        
+        <Route path="/payment/success" element={<PaymentSuccess />} />
+        
+        <Route path="/payment/cancel" element={
+          <div className="min-h-screen flex items-center justify-center bg-red-50">
+            <div className="text-center p-8">
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </div>
+              <h1 className="text-2xl font-bold text-red-800 mb-2">Payment Cancelled</h1>
+              <p className="text-gray-600 mb-4">Your payment was not completed.</p>
+              <a href="/" className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700">Try Again</a>
+            </div>
+          </div>
+        } />
         
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

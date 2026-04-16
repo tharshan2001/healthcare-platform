@@ -5,8 +5,8 @@ import stripe
 load_dotenv()
 
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
-FRONTEND_SUCCESS_URL = os.getenv("FRONTEND_SUCCESS_URL", "http://localhost:5173/success")
-FRONTEND_CANCEL_URL = os.getenv("FRONTEND_CANCEL_URL", "http://localhost:5173/cancel")
+FRONTEND_SUCCESS_URL = os.getenv("FRONTEND_SUCCESS_URL", "http://localhost:5173/payment/success")
+FRONTEND_CANCEL_URL = os.getenv("FRONTEND_CANCEL_URL", "http://localhost:5173/payment/cancel")
 
 if not STRIPE_SECRET_KEY:
     raise ValueError("STRIPE_SECRET_KEY is not set in the .env file")
@@ -16,6 +16,14 @@ stripe.api_base = "https://api.stripe.com"
 
 
 def create_checkout_session(payment_id: int, amount: float, currency: str = "usd"):
+    currency_map = {
+        "lkr": "lkr",
+        "usd": "usd",
+        "gbp": "gbp",
+        "eur": "eur",
+    }
+    curr = currency_map.get(currency.lower(), "usd")
+    
     try:
         session = stripe.checkout.Session.create(
             payment_method_types=["card"],
@@ -23,7 +31,7 @@ def create_checkout_session(payment_id: int, amount: float, currency: str = "usd
             line_items=[
                 {
                     "price_data": {
-                        "currency": currency.lower(),
+                        "currency": curr,
                         "product_data": {
                             "name": f"Appointment Payment #{payment_id}",
                         },

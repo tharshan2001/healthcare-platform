@@ -7,9 +7,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import and_, desc
 from sqlalchemy.orm import Session
 
-from ..config import settings
-from ..database import get_db
-from ..models.session import (
+from config import settings
+from database import get_db
+from models.session import (
     EventType,
     ParticipantRole,
     SessionEvent,
@@ -17,7 +17,7 @@ from ..models.session import (
     SessionStatus,
     TelemedicineSession,
 )
-from ..schemas.session import (
+from schemas import (
     CancelSessionRequest,
     CompleteSessionRequest,
     JoinSessionRequest,
@@ -30,7 +30,7 @@ from ..schemas.session import (
     SessionListResponse,
     StartSessionRequest,
 )
-from ..video_provider import get_video_provider
+from video_provider import get_video_provider
 
 router = APIRouter(prefix=f"{settings.API_V1_PREFIX}/telemedicine", tags=["telemedicine"])
 

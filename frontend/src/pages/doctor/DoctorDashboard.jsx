@@ -31,7 +31,7 @@ export default function DoctorDashboard() {
         doctorAPI.getMyAvailability(),
         doctorAPI.getMyPrescriptions(),
         doctorAPI.getMyAppointments(),
-        fetch(`http://localhost:8004/notifications/${profileData.id}`).then(r => r.json()).catch(() => []),
+        fetch(`http://localhost:8005/notifications/${profileData.id}`).then(r => r.json()).catch(() => []),
       ]);
       setAvailability(avail);
       setPrescriptions(pres);
@@ -104,30 +104,105 @@ export default function DoctorDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <nav className="bg-gradient-to-r from-green-600 to-green-800 text-white p-4 shadow-lg">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <h1 className="text-xl font-bold">Doctor Dashboard</h1>
-          <div className="flex items-center gap-4">
-            <button 
-              onClick={() => setShowNotifications(!showNotifications)} 
-              className="relative bg-green-700 px-4 py-2 rounded hover:bg-green-600"
-            >
-              Alerts
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-xs w-5 h-5 rounded-full flex items-center justify-center">
-                  {unreadCount}
-                </span>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold" style={{ color: '#080808' }}>Welcome back, Dr. {profile?.full_name?.split(' ')[0] || ''}</h1>
+          <p className="text-sm mt-1" style={{ color: '#5a5a5a' }}>{profile?.specialty} • {profile?.hospital}</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => setShowNotifications(!showNotifications)} 
+            className="relative px-4 py-2 rounded transition-all hover:bg-gray-100"
+            style={{ backgroundColor: '#ffffff', color: '#363636', border: '1px solid #d8d8d8' }}
+          >
+            <span className="flex items-center gap-2">
+              <span>🔔</span>
+              <span className="text-sm font-medium">Alerts</span>
+            </span>
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center" style={{ backgroundColor: '#ee1d36' }}>
+                {unreadCount}
+              </span>
+            )}
+          </button>
+          <button 
+            onClick={() => navigate('/telemedicine?role=doctor')}
+            className="px-4 py-2 rounded transition-all hover:opacity-90"
+            style={{ backgroundColor: '#00d722', color: '#ffffff' }}
+          >
+            <span className="text-sm font-medium">Start Telemedicine</span>
+          </button>
+        </div>
+      </div>
+
+      {showNotifications && (
+        <div className="fixed inset-0 flex items-center justify-center z-50" style={{ backgroundColor: 'rgba(8,8,8,0.5)' }}>
+          <div className="bg-white rounded-lg max-w-md w-full max-h-[80vh] overflow-y-auto" style={{ boxShadow: 'rgba(0,0,0,0.08) 0px 13px 13px, rgba(0,0,0,0.04) 0px 30px 18px' }}>
+            <div className="flex justify-between items-center p-4 border-b" style={{ borderColor: '#d8d8d8' }}>
+              <h3 className="text-lg font-semibold" style={{ color: '#080808' }}>Alerts</h3>
+              <button onClick={() => setShowNotifications(false)} className="p-1 hover:bg-gray-100 rounded" style={{ color: '#5a5a5a' }}>✕</button>
+            </div>
+            <div className="p-4">
+              {notifications.length === 0 ? (
+                <p className="text-center py-8" style={{ color: '#5a5a5a' }}>No alerts</p>
+              ) : (
+                <div className="space-y-3">
+                  {notifications.map(n => (
+                    <div 
+                      key={n.id} 
+                      className="p-3 rounded-lg"
+                      style={{ 
+                        backgroundColor: n.status === 'unread' ? '#f0f7ff' : '#f5f5f5',
+                        borderLeft: n.status === 'unread' ? '3px solid #146ef5' : '3px solid #d8d8d8'
+                      }}
+                    >
+                      <p className="font-medium text-sm" style={{ color: '#080808' }}>{n.message}</p>
+                      <p className="text-xs mt-1" style={{ color: '#5a5a5a' }}>{new Date(n.created_at).toLocaleString()}</p>
+                    </div>
+                  ))}
+                </div>
               )}
-            </button>
-            <span className="hidden md:inline">{profile?.full_name}</span>
-            <button onClick={() => navigate('/telemedicine?role=doctor')} className="bg-green-700 px-4 py-2 rounded hover:bg-green-600">
-              Telemedicine
-            </button>
-            <button onClick={handleLogout} className="bg-red-500 px-4 py-2 rounded hover:bg-red-600">Logout</button>
+            </div>
           </div>
         </div>
-      </nav>
+      )}
+
+      <div className="flex gap-2">
+        <button 
+          onClick={() => setActiveTab('appointments')} 
+          className="px-4 py-2 rounded transition-all text-sm font-medium"
+          style={{ 
+            backgroundColor: activeTab === 'appointments' ? '#146ef5' : '#ffffff',
+            color: activeTab === 'appointments' ? '#ffffff' : '#363636',
+            border: '1px solid #d8d8d8'
+          }}
+        >
+          Appointments ({appointments.length})
+        </button>
+        <button 
+          onClick={() => setActiveTab('availability')} 
+          className="px-4 py-2 rounded transition-all text-sm font-medium"
+          style={{ 
+            backgroundColor: activeTab === 'availability' ? '#146ef5' : '#ffffff',
+            color: activeTab === 'availability' ? '#ffffff' : '#363636',
+            border: '1px solid #d8d8d8'
+          }}
+        >
+          Availability
+        </button>
+        <button 
+          onClick={() => setActiveTab('prescriptions')} 
+          className="px-4 py-2 rounded transition-all text-sm font-medium"
+          style={{ 
+            backgroundColor: activeTab === 'prescriptions' ? '#146ef5' : '#ffffff',
+            color: activeTab === 'prescriptions' ? '#ffffff' : '#363636',
+            border: '1px solid #d8d8d8'
+          }}
+        >
+          Prescriptions ({prescriptions.length})
+        </button>
+      </div>
 
       {showNotifications && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">

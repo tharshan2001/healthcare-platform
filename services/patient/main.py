@@ -57,3 +57,8 @@ def get_patient(patient_id: int, db = Depends(get_db)):
         "is_active": patient.is_active,
     }
 
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8001)
+

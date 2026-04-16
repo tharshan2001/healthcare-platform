@@ -7,6 +7,11 @@ from models import Availability, Doctor, TimeSlot
 from typing import List
 from datetime import datetime, timedelta
 import httpx
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+APPOINTMENT_SERVICE_URL = os.getenv("APPOINTMENT_SERVICE_URL", "http://localhost:8003")
 
 router = APIRouter()
 
@@ -41,6 +46,40 @@ class BookSlotRequest(BaseModel):
 class ReleaseSlotRequest(BaseModel):
     slot_id: int
     patient_id: int
+
+class CreateSlotRequest(BaseModel):
+    doctor_id: int
+    date: str
+    time: str
+
+class CreateSlotResponse(BaseModel):
+    id: int
+    doctor_id: int
+    date: str
+    time: str
+    available: bool
+
+@router.post("/doctors/slots", response_model=CreateSlotResponse)
+def create_slot(
+    request: CreateSlotRequest,
+    db: Session = Depends(get_db)
+):
+    slot = TimeSlot(
+        doctor_id=request.doctor_id,
+        date=request.date,
+        time=request.time,
+        is_booked=False
+    )
+    db.add(slot)
+    db.commit()
+    db.refresh(slot)
+    return {
+        "id": slot.id,
+        "doctor_id": slot.doctor_id,
+        "date": slot.date,
+        "time": slot.time,
+        "available": not slot.is_booked
+    }
 
 @router.get("/doctors/{doctor_id}/slots")
 def get_available_slots(
