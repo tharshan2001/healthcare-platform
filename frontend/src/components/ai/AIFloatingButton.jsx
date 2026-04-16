@@ -16,7 +16,22 @@ const UserAvatar = () => (
   </div>
 )
 
-const EXCLUDED_ROUTES = ['/doctor/dashboard', '/patient/dashboard']
+const EXCLUDED_ROUTES = [
+  '/doctor/dashboard',
+  '/patient/dashboard',
+  '/doctor/appointments',
+  '/doctor/schedule',
+  '/doctor/patients',
+  '/doctor/prescriptions',
+  '/doctor/availability',
+  '/doctor/telemedicine',
+  '/doctor/profile',
+  '/patient/doctors',
+  '/patient/appointments',
+  '/patient/records',
+  '/patient/telemedicine',
+  '/patient/profile',
+]
 
 export default function AIFloatingButton() {
   const [isOpen, setIsOpen] = useState(false)
