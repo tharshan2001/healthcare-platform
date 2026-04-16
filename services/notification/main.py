@@ -27,3 +27,8 @@ def read_root():
 @app.get("/health")
 def health_check():
     return {"status": "healthy", "queue_processor": "active"}
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8005)
