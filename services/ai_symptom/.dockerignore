@@ -1,0 +1,35 @@
+# Python
+.venv
+venv
+__pycache__
+*.pyc
+
+# Git
+.git
+.gitignore
+
+# Node (if any)
+node_modules
+
+# Logs
+*.log
+
+# Databases
+*.db
+*.sqlite3
+
+# ML / AI (VERY IMPORTANT)
+models/
+*.pt
+*.bin
+*.onnx
+.cache/
+
+# OS
+.DS_Store
+
+# Environment
+.env
+.env.*
+*.pem
+*.key

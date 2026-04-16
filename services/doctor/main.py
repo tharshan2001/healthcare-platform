@@ -351,11 +351,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(auth.router, prefix="/auth", tags=["auth"])
-app.include_router(availability.router, prefix="/availability", tags=["availability"])
-app.include_router(prescriptions.router, prefix="/prescriptions", tags=["prescriptions"])
-app.include_router(doctors.router, prefix="", tags=["doctors"])
-app.include_router(slots.router, prefix="", tags=["slots"])
+app.include_router(auth, prefix="/auth", tags=["auth"])
+app.include_router(availability, prefix="/availability", tags=["availability"])
+app.include_router(prescriptions, prefix="/prescriptions", tags=["prescriptions"])
+app.include_router(doctors, prefix="", tags=["doctors"])
+app.include_router(slots, prefix="", tags=["slots"])
 
 @app.get("/")
 def root():

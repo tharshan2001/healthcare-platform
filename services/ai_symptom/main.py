@@ -1,4 +1,6 @@
+
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from contextlib import asynccontextmanager
 import os
@@ -26,6 +28,14 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan, title="AI Symptom Service", version="1.0.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 class ChatRequest(BaseModel):
@@ -57,6 +67,11 @@ async def health():
 @app.get("/")
 async def root():
     return {"message": "AI Symptom Analysis Service"}
+
+
+@app.get("/api/greeting")
+async def get_greeting():
+    return {"greeting": "Hi! I'm Dr. AI. Tell me your symptoms and I'll help you understand what might be going on."}
 
 
 if __name__ == "__main__":

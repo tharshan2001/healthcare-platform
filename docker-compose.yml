@@ -1,102 +1,21 @@
 services:
-  # Databases
-  postgres-patient:
+  postgres:
     image: postgres:15-alpine
+    container_name: healthcare-postgres
     environment:
-      POSTGRES_USER: patient_user
-      POSTGRES_PASSWORD: patient_pass
-      POSTGRES_DB: patient_db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin_pass
     ports:
       - "5432:5432"
     volumes:
-      - postgres_patient_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
+      - ./services/init-db:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U patient_user"]
+      test: ["CMD-SHELL", "pg_isready -U admin"]
       interval: 5s
       timeout: 5s
       retries: 5
 
-  postgres-doctor:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_USER: doctor_user
-      POSTGRES_PASSWORD: doctor_pass
-      POSTGRES_DB: doctor_db
-    ports:
-      - "5433:5432"
-    volumes:
-      - postgres_doctor_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U doctor_user"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  postgres-appointment:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_USER: appointment_user
-      POSTGRES_PASSWORD: appointment_pass
-      POSTGRES_DB: appointment_db
-    ports:
-      - "5434:5432"
-    volumes:
-      - postgres_appointment_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U appointment_user"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  postgres-telemedicine:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_USER: telemedicine_user
-      POSTGRES_PASSWORD: telemedicine_pass
-      POSTGRES_DB: telemedicine_db
-    ports:
-      - "5435:5432"
-    volumes:
-      - postgres_telemedicine_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U telemedicine_user"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  postgres-payment:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_USER: payment_user
-      POSTGRES_PASSWORD: payment_pass
-      POSTGRES_DB: payment_db
-    ports:
-      - "5436:5432"
-    volumes:
-      - postgres_payment_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U payment_user"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  postgres-notification:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_USER: notification_user
-      POSTGRES_PASSWORD: notification_pass
-      POSTGRES_DB: notification_db
-    ports:
-      - "5437:5432"
-    volumes:
-      - postgres_notification_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U notification_user"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  # Redis for caching
   redis:
     image: redis:7-alpine
     ports:
@@ -107,116 +26,157 @@ services:
       timeout: 5s
       retries: 5
 
-  # Microservices
   patient-service:
     build: ./services/patient
+    container_name: patient-service
     ports:
       - "8001:8001"
+    env_file:
+      - ./services/patient/.env
     environment:
-      - DATABASE_URL=postgresql://patient_user:patient_pass@postgres-patient:5432/patient_db
+      - DATABASE_URL=postgresql://admin:admin_pass@postgres:5432/patient_db
       - NOTIFICATION_SERVICE_URL=http://notification-service:8006
       - DOCTOR_SERVICE_URL=http://doctor-service:8002
       - APPOINTMENT_SERVICE_URL=http://appointment-service:8003
     depends_on:
-      postgres-patient:
+      postgres:
         condition: service_healthy
-      notification-service:
-        condition: service_started
-
-  doctor-service:
-    build: ./services/doctor
-    ports:
-      - "8002:8002"
-    environment:
-      - DATABASE_URL=postgresql://doctor_user:doctor_pass@postgres-doctor:5432/doctor_db
-      - APPOINTMENT_SERVICE_URL=http://appointment-service:8003
-    depends_on:
-      postgres-doctor:
-        condition: service_healthy
-
-  appointment-service:
-    build: ./services/appointment
-    ports:
-      - "8003:8003"
-    environment:
-      - DATABASE_URL=postgresql://appointment_user:appointment_pass@postgres-appointment:5432/appointment_db
-      - NOTIFICATION_SERVICE_URL=http://notification-service:8006
-      - REDIS_HOST=redis
-    depends_on:
-      postgres-appointment:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-
-  telemedicine-service:
-    build: ./services/telemedicine_service
-    ports:
-      - "8004:8004"
-    environment:
-      - DATABASE_URL=postgresql://telemedicine_user:telemedicine_pass@postgres-telemedicine:5432/telemedicine_db
-      - DOCTOR_SERVICE_URLS=http://doctor-service:8002
-      - PATIENT_SERVICE_URLS=http://patient-service:8001
-      - APPOINTMENT_SERVICE_URLS=http://appointment-service:8003
-    depends_on:
-      postgres-telemedicine:
-        condition: service_healthy
-
-  payment-service:
-    build: ./services/payment
-    ports:
-      - "8005:8005"
-    environment:
-      - DATABASE_URL=postgresql://payment_user:payment_pass@postgres-payment:5432/payment_db
-      - NOTIFICATION_SERVICE_URL=http://notification-service:8006
-      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-sk_test_placeholder}
-      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-whsec_placeholder}
-    depends_on:
-      postgres-payment:
-        condition: service_healthy
-
-  notification-service:
-    build: ./services/notification
-    ports:
-      - "8006:8006"
-    environment:
-      - DATABASE_URL=postgresql://notification_user:notification_pass@postgres-notification:5432/notification_db
-    depends_on:
-      postgres-notification:
-        condition: service_healthy
-
-  ai-symptom-service:
-    build: ./services/ai_symptom
-    ports:
-      - "8007:8007"
-    volumes:
-      - ./services/ai_symptom/faiss_index:/app/faiss_index
-    environment:
-      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8007/health"]
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8001/health')\""]
       interval: 30s
       timeout: 10s
       retries: 3
 
-  # Frontend
+  doctor-service:
+    build: ./services/doctor
+    container_name: doctor-service
+    ports:
+      - "8002:8002"
+    env_file:
+      - ./services/doctor/.env
+    environment:
+      - DATABASE_URL=postgresql://admin:admin_pass@postgres:5432/doctor_db
+      - APPOINTMENT_SERVICE_URL=http://appointment-service:8003
+      - NOTIFICATION_SERVICE_URL=http://notification-service:8006
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8002/health')\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  appointment-service:
+    build: ./services/appointment
+    container_name: appointment-service
+    ports:
+      - "8003:8003"
+    env_file:
+      - ./services/appointment/.env
+    environment:
+      - DATABASE_URL=postgresql://admin:admin_pass@postgres:5432/appointment_db
+      - NOTIFICATION_SERVICE_URL=http://notification-service:8006
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8003/health')\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  telemedicine-service:
+    build: ./services/telemedicine_service
+    container_name: telemedicine-service
+    ports:
+      - "8004:8004"
+    env_file:
+      - ./services/telemedicine_service/.env
+    environment:
+      - DATABASE_URL=postgresql://admin:admin_pass@postgres:5432/telemedicine_db
+      - DOCTOR_SERVICE_URL=http://doctor-service:8002
+      - PATIENT_SERVICE_URL=http://patient-service:8001
+      - APPOINTMENT_SERVICE_URL=http://appointment-service:8003
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8004/health')\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  payment-service:
+    build: ./services/payment
+    container_name: payment-service
+    ports:
+      - "8005:8005"
+    env_file:
+      - ./services/payment/.env
+    environment:
+      - DATABASE_URL=postgresql://admin:admin_pass@postgres:5432/payment_db
+      - NOTIFICATION_SERVICE_URL=http://notification-service:8006
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8005/health')\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  notification-service:
+    build: ./services/notification
+    container_name: notification-service
+    ports:
+      - "8006:8006"
+    env_file:
+      - ./services/notification/.env
+    environment:
+      - DATABASE_URL=postgresql://admin:admin_pass@postgres:5432/notification_db
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8006/health')\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  ai-symptom-service:
+    build: ./services/ai_symptom
+    container_name: ai-symptom-service
+    ports:
+      - "8007:8007"
+    volumes:
+      - ./services/ai_symptom/faiss_index:/app/faiss_index
+    env_file:
+      - ./services/ai_symptom/.env
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8007/health')\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+    container_name: frontend
     ports:
       - "5173:5173"
     environment:
-      - VITE_API_BASE=http://localhost:8001
-      - VITE_DOCTOR_API=http://localhost:8002
-      - VITE_AI_SYMPTOM_API=http://localhost:8007
+      - VITE_API_BASE=http://patient-service:8001
+      - VITE_DOCTOR_API=http://doctor-service:8002
+      - VITE_AI_SYMPTOM_API=http://ai-symptom-service:8007
     depends_on:
       - patient-service
       - doctor-service
 
 volumes:
-  postgres_patient_data:
-  postgres_doctor_data:
-  postgres_appointment_data:
-  postgres_telemedicine_data:
-  postgres_payment_data:
-  postgres_notification_data:
+  postgres_data:

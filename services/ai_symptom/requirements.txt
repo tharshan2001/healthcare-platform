@@ -1,9 +1,10 @@
 pandas
 numpy
 scikit-learn
-sentence-transformers
 faiss-cpu
-google-genai
+google-generativeai
 python-dotenv
 fastapi
 uvicorn
+torch --index-url https://download.pytorch.org/cpu
+sentence-transformers
