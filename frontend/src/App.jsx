@@ -8,6 +8,10 @@ import DoctorSearch from './pages/DoctorSearch';
 import DoctorLogin from './pages/doctor/DoctorLogin';
 import DoctorRegister from './pages/doctor/DoctorRegister';
 import DoctorDashboard from './pages/doctor/DoctorDashboard';
+import DoctorAppointments from './pages/doctor/DoctorAppointments';
+import DoctorSchedule from './pages/doctor/DoctorSchedule';
+import DoctorPrescriptions from './pages/doctor/DoctorPrescriptions';
+import DoctorProfile from './pages/doctor/DoctorProfile';
 import DoctorLayout from './layouts/DoctorLayout';
 
 import PatientLogin from './pages/patient/PatientLogin';
@@ -87,13 +91,10 @@ function App() {
         <Route element={<ProtectedDoctorRoute />}>
           <Route element={<DoctorLayout />}>
             <Route path="/doctor/dashboard" element={<DoctorDashboard />} />
-            <Route path="/doctor/appointments" element={<div className="p-8">Appointments - Coming Soon</div>} />
-            <Route path="/doctor/schedule" element={<div className="p-8">Schedule - Coming Soon</div>} />
-            <Route path="/doctor/patients" element={<div className="p-8">Patients - Coming Soon</div>} />
-            <Route path="/doctor/prescriptions" element={<div className="p-8">Prescriptions - Coming Soon</div>} />
-            <Route path="/doctor/availability" element={<div className="p-8">Availability - Coming Soon</div>} />
-            <Route path="/doctor/telemedicine" element={<div className="p-8">Telemedicine - Coming Soon</div>} />
-            <Route path="/doctor/profile" element={<div className="p-8">Profile - Coming Soon</div>} />
+            <Route path="/doctor/appointments" element={<DoctorAppointments />} />
+            <Route path="/doctor/schedule" element={<DoctorSchedule />} />
+            <Route path="/doctor/prescriptions" element={<DoctorPrescriptions />} />
+            <Route path="/doctor/profile" element={<DoctorProfile />} />
           </Route>
         </Route>
         

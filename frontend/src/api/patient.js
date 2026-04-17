@@ -94,16 +94,20 @@ export const patientAPI = {
   lockSlot: async (slotId, patientId) => {
     const res = await fetch('http://localhost:8002/doctors/slots/lock', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
       body: JSON.stringify({ slot_id: slotId, patient_id: patientId }),
     });
-    return res.json();
+    const data = await res.json();
+    if (!res.ok && res.status === 401) {
+      throw new Error('Please login to book an appointment');
+    }
+    return data;
   },
 
   bookSlot: async (slotId, patientId, doctorId, date, time, reason) => {
     const res = await fetch('http://localhost:8002/doctors/slots/book', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
       body: JSON.stringify({
         slot_id: slotId,
         patient_id: patientId,
@@ -114,6 +118,9 @@ export const patientAPI = {
       }),
     });
     if (!res.ok) {
+      if (res.status === 401) {
+        throw new Error('Please login to book an appointment');
+      }
       const err = await res.json();
       throw new Error(err.detail || 'Failed to book');
     }
@@ -123,7 +130,7 @@ export const patientAPI = {
   releaseSlot: async (slotId, patientId) => {
     const res = await fetch('http://localhost:8002/doctors/slots/release', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
       body: JSON.stringify({ slot_id: slotId, patient_id: patientId }),
     });
     return res.json();

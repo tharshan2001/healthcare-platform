@@ -1,14 +1,6 @@
 import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { patientAPI } from '../api/patient';
-import { Icons } from '../components/Icons';
-
-const menuItems = [
-  { path: '/patient/dashboard', icon: 'home', label: 'Dashboard' },
-  { path: '/patient/appointments', icon: 'calendar', label: 'Appointments' },
-  { path: '/patient/records', icon: 'clipboard', label: 'Records' },
-  { path: '/patient/profile', icon: 'user', label: 'Profile' },
-];
 
 export default function PatientLayout() {
   const navigate = useNavigate();
@@ -58,102 +50,127 @@ export default function PatientLayout() {
     return dateStr === today;
   };
 
+  const menuItems = [
+    {
+      path: '/patient/dashboard',
+      label: 'Dashboard',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+        </svg>
+      ),
+    },
+    {
+      path: '/patient/appointments',
+      label: 'Appointments',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+      ),
+    },
+    {
+      path: '/patient/records',
+      label: 'Records',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+      ),
+    },
+    {
+      path: '/patient/profile',
+      label: 'Profile',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+        </svg>
+      ),
+    },
+  ];
+
   return (
-    <div className="flex h-screen overflow-hidden" style={{ backgroundColor: '#f5f5f5' }}>
+    <div className="flex h-screen overflow-hidden bg-gray-50">
+      {/* Sidebar */}
       <aside
-        className={`${sidebarOpen ? 'w-72' : 'w-20'} bg-white flex flex-col flex-shrink-0`}
-        style={{
-          boxShadow: '2px 0 10px rgba(0,0,0,0.05)',
-          height: '100vh',
-          position: 'fixed',
-          left: 0,
-          top: 0,
-          zIndex: 40
-        }}
+        className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-white flex flex-col flex-shrink-0 border-r border-gray-200`}
       >
-        <div className="p-4 border-b flex items-center justify-between" style={{ borderColor: '#e5e7eb' }}>
+        {/* Header */}
+        <div className="h-16 flex items-center justify-between px-4 border-b border-gray-100">
           {sidebarOpen && (
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded flex items-center justify-center" style={{ backgroundColor: '#146ef5' }}>
-                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                 </svg>
               </div>
-              <h1 className="text-lg font-semibold" style={{ color: '#080808' }}>Healthcare</h1>
+              <span className="font-bold text-gray-900">HealthCare</span>
             </div>
           )}
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-2 rounded hover:bg-gray-100 transition-colors"
-            style={{ color: '#363636' }}
+            className="p-2 hover:bg-gray-100 rounded-lg transition"
           >
-            {Icons.menu()}
+            <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={sidebarOpen ? "M11 19l-7-7 7-7m8 14l-7-7 7-7" : "M13 5l7 7-7 7M5 5l7 7-7 7"} />
+            </svg>
           </button>
         </div>
 
-        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+        {/* Navigation */}
+        <nav className="flex-1 p-4 space-y-1">
           {menuItems.map((item) => (
             <NavLink
               key={item.path}
               to={item.path}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded transition-all duration-200 ${
-                  isActive ? 'font-medium' : ''
+                `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                  isActive ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-50'
                 }`
               }
-              style={({ isActive }) => ({
-                backgroundColor: isActive ? '#146ef5' : 'transparent',
-                color: isActive ? '#ffffff' : '#363636',
-              })}
             >
-              <span className="text-lg">{Icons[item.icon]()}</span>
-              {sidebarOpen && <span className="text-sm">{item.label}</span>}
+              {item.icon}
+              {sidebarOpen && <span className="font-medium">{item.label}</span>}
             </NavLink>
           ))}
         </nav>
 
+        {/* Next Appointment */}
         {nextAppointment && sidebarOpen && (
-          <div className="mx-4 mb-4 p-4 rounded-xl flex-shrink-0" style={{ backgroundColor: '#f0f7ff' }}>
-            <div className="flex items-center gap-2 mb-2">
-              {Icons.clock()}
-              <span className="text-xs font-medium" style={{ color: '#146ef5' }}>Next Appointment</span>
-            </div>
-            <p className="font-semibold text-sm truncate" style={{ color: '#080808' }}>
+          <div className="mx-4 mb-4 p-4 bg-blue-50 rounded-xl">
+            <p className="text-xs font-medium text-blue-600 mb-1">Next Appointment</p>
+            <p className="font-semibold text-gray-900 text-sm truncate">
               {nextAppointment.doctor_name || `Doctor #${nextAppointment.doctor_id}`}
             </p>
-            <p className="text-sm" style={{ color: '#5a5a5a' }}>
+            <p className="text-sm text-gray-500">
               {isToday(nextAppointment.appointment_date) ? 'Today' : formatDate(nextAppointment.appointment_date)} at {nextAppointment.appointment_time}
             </p>
           </div>
         )}
 
-        {profile && sidebarOpen && (
-          <div className="px-4 py-3 mx-4 mb-2 rounded flex-shrink-0" style={{ backgroundColor: '#f9fafb' }}>
-            <p className="text-sm font-medium truncate" style={{ color: '#080808' }}>{profile.full_name}</p>
-            <p className="text-xs truncate" style={{ color: '#5a5a5a' }}>{profile.email}</p>
-          </div>
-        )}
-
-        <div className="p-4 border-t flex-shrink-0" style={{ borderColor: '#e5e7eb' }}>
+        {/* User & Logout */}
+        <div className="p-4 border-t border-gray-100">
+          {profile && sidebarOpen && (
+            <div className="mb-3 px-2">
+              <p className="font-medium text-gray-900 text-sm truncate">{profile.full_name}</p>
+              <p className="text-gray-500 text-xs truncate">{profile.email}</p>
+            </div>
+          )}
           <button
             onClick={handleLogout}
-            className="flex items-center gap-3 px-3 py-2.5 w-full rounded transition-colors hover:bg-red-50"
-            style={{ color: '#dc2626' }}
+            className="w-full flex items-center gap-3 px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg transition"
           >
-            {Icons.logout()}
-            {sidebarOpen && <span className="text-sm">Logout</span>}
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            {sidebarOpen && <span className="font-medium">Logout</span>}
           </button>
         </div>
       </aside>
 
-      <main 
-        className="flex-1 overflow-y-auto"
-        style={{ 
-          marginLeft: sidebarOpen ? '18rem' : '5rem',
-          transition: 'margin-left 0.3s'
-        }}
-      >
-        <div className="p-6 min-h-full">
+      {/* Main Content */}
+      <main className="flex-1 overflow-y-auto">
+        <div className="p-6">
           <Outlet />
         </div>
       </main>

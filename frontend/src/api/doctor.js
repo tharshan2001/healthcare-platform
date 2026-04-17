@@ -100,7 +100,8 @@ export const doctorAPI = {
   },
 
   getMyAppointments: async () => {
-    const res = await fetch('http://localhost:8003/appointments/appointments?doctor_id=1');
+    const doctorId = localStorage.getItem('doctor_id');
+    const res = await fetch(`http://localhost:8003/appointments/appointments?doctor_id=${doctorId || 1}`);
     return res.json();
   },
 
