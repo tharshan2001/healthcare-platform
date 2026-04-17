@@ -8,9 +8,9 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api/payment': {
-        target: 'http://127.0.0.1:8005',
+        target: 'http://127.0.0.1:9005',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/payment/, '/'),
+        rewrite: (path) => path.replace(/^\/api\/payment/, ''),
       },
     },
   },

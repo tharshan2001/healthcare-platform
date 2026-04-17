@@ -603,16 +603,9 @@ export default function Landing() {
         doctor={selectedDoctor}
         slot={selectedSlot}
         patientId={parseInt(localStorage.getItem('patient_id') || '0')}
+        lockedSlotId={lockedSlotId}
         onSuccess={handlePaymentSuccess}
         onFailure={handlePaymentFailure}
-        onReleaseSlot={async () => {
-          if (lockedSlotId) {
-            await patientAPI.releaseSlot(
-              lockedSlotId, 
-              parseInt(localStorage.getItem('patient_id') || '1')
-            );
-          }
-        }}
       />
     </div>
   );

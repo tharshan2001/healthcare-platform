@@ -3,10 +3,11 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from database import get_db
 from schemas import AppointmentCreate, AppointmentUpdate, AppointmentResponse
-from models import Appointment, AppointmentStatus, PaymentStatus
+from models import Appointment, AppointmentStatus
 from utils.auth import decode_token
 from utils.notification_client import send_notification
 from typing import List
+import threading
 
 router = APIRouter()
 
@@ -55,8 +56,8 @@ def get_cached_availability(doctor_id: int, date: str, time: str):
             return None
     return None
 
-@router.post("/appointments", response_model=AppointmentResponse)
-def create_appointment(
+@router.post("/appointments/internal", response_model=AppointmentResponse)
+def create_appointment_internal(
     appointment: AppointmentCreate,
     db: Session = Depends(get_db)
 ):
@@ -78,21 +79,24 @@ def create_appointment(
     
     cache_availability(appointment.doctor_id, appointment.appointment_date, appointment.appointment_time, False)
     
-    if appointment.patient_email:
-        doctor_name = appointment.doctor_name or "your doctor"
-        message = f"Your appointment with Dr. {doctor_name} is scheduled for {appointment.appointment_date} at {appointment.appointment_time}."
-        print(f"SENDING NOTIFICATION to patient {appointment.patient_id}: {message}")
-        try:
-            result = send_notification(
-                user_id=appointment.patient_id,
-                message=message,
-                notification_type="appointment",
-                email=appointment.patient_email,
-                phone=appointment.patient_phone or ""
-            )
-            print(f"Notification result: {result}")
-        except Exception as e:
-            print(f"Failed to send notification: {e}")
+    def send_notification_async():
+        if appointment.patient_email:
+            doctor_name = appointment.doctor_name or "your doctor"
+            message = f"Your appointment with Dr. {doctor_name} is scheduled for {appointment.appointment_date} at {appointment.appointment_time}."
+            print(f"SENDING NOTIFICATION to patient {appointment.patient_id}: {message}")
+            try:
+                result = send_notification(
+                    user_id=appointment.patient_id,
+                    message=message,
+                    notification_type="appointment",
+                    email=appointment.patient_email,
+                    phone=appointment.patient_phone or ""
+                )
+                print(f"Notification result: {result}")
+            except Exception as e:
+                print(f"Failed to send notification: {e}")
+    
+    threading.Thread(target=send_notification_async, daemon=True).start()
     
     return db_appointment
 

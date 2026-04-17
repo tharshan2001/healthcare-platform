@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import AIFloatingButton from './components/ai/AIFloatingButton';
@@ -14,6 +13,9 @@ import DoctorLayout from './layouts/DoctorLayout';
 import PatientLogin from './pages/patient/PatientLogin';
 import PatientRegister from './pages/patient/PatientRegister';
 import PatientDashboard from './pages/patient/PatientDashboard';
+import PatientAppointments from './pages/patient/AppointmentsPage';
+import PatientRecords from './pages/patient/RecordsPage';
+import PatientProfile from './pages/patient/ProfilePage';
 import PatientLayout from './layouts/PatientLayout';
 
 import SymptomChecker from './pages/patient/SymptomChecker';
@@ -103,12 +105,9 @@ function App() {
         <Route element={<ProtectedPatientRoute />}>
           <Route element={<PatientLayout />}>
             <Route path="/patient/dashboard" element={<PatientDashboard />} />
-            <Route path="/patient/doctors" element={<div className="p-8">Find Doctors - Coming Soon</div>} />
-            <Route path="/patient/appointments" element={<div className="p-8">Appointments - Coming Soon</div>} />
-            <Route path="/patient/records" element={<div className="p-8">Medical Records - Coming Soon</div>} />
-            <Route path="/patient/telemedicine" element={<div className="p-8">Telemedicine - Coming Soon</div>} />
-            <Route path="/patient/symptoms" element={<SymptomChecker />} />
-            <Route path="/patient/profile" element={<div className="p-8">Profile - Coming Soon</div>} />
+            <Route path="/patient/appointments" element={<PatientAppointments />} />
+            <Route path="/patient/records" element={<PatientRecords />} />
+            <Route path="/patient/profile" element={<PatientProfile />} />
           </Route>
         </Route>
         

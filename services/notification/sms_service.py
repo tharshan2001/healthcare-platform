@@ -8,6 +8,7 @@ API_PASSWORD = os.getenv("DIALOG_SMS_PASS", "md$%43JG")
 API_AUTH_STRING = os.getenv("DIALOG_SMS_AUTH", "05612d4977d425f")
 API_BASE_URL = os.getenv("DIALOG_SMS_URL", "https://richcommunication.dialog.lk/api")
 DEFAULT_MASK = os.getenv("DIALOG_SMS_MASK", "KISMET PLUS")
+USE_MOCK_SMS = os.getenv("USE_MOCK_SMS", "false").lower() == "true"
 
 
 def generate_headers():
@@ -24,6 +25,10 @@ def generate_headers():
 
 
 def send_sms(phone_number: str, message: str):
+    if USE_MOCK_SMS:
+        print(f"✅ [MOCK] SMS sent to {phone_number}: {message[:50]}...")
+        return {"status": "success", "phone": phone_number, "mock": True}
+    
     if not phone_number:
         raise ValueError("Phone number is required")
     

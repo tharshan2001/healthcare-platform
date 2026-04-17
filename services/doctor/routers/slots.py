@@ -175,7 +175,7 @@ def book_slot(
             print(f"Creating appointment with: {appt_payload}")
             
             response = client.post(
-                f"{APPOINTMENT_SERVICE_URL}/appointments/appointments",
+                f"{APPOINTMENT_SERVICE_URL}/appointments/appointments/internal",
                 json=appt_payload
             )
             print(f"Appointment response: {response.status_code}, {response.text}")
@@ -185,7 +185,13 @@ def book_slot(
                 slot.locked_at = now
                 slot.booked_by = request.patient_id
                 db.commit()
-                return {"success": True, "message": "Appointment booked successfully"}
+                return {"success": True, "message": "Appointment booked successfully", "id": response.json().get("id")}
+            elif response.status_code == 400 and "already booked" in response.text.lower():
+                slot.is_booked = True
+                slot.locked_at = now
+                slot.booked_by = request.patient_id
+                db.commit()
+                return {"success": True, "message": "Appointment already exists", "id": None}
             else:
                 slot.is_booked = False
                 slot.locked_at = None
