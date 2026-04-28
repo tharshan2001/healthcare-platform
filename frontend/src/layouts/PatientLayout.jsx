@@ -32,6 +32,25 @@ export default function PatientLayout() {
     loadProfile();
   }, []);
 
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (profile?.id) {
+      checkNotifications();
+    }
+  }, [profile]);
+
+  const checkNotifications = async () => {
+    try {
+      const data = await patientAPI.getUnreadNotifications();
+      if (Array.isArray(data)) {
+        setUnreadCount(data.length);
+      }
+    } catch (err) {
+      console.error('Notification check error:', err);
+    }
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('patient_token');
     localStorage.removeItem('patient_id');
@@ -79,6 +98,15 @@ export default function PatientLayout() {
       ),
     },
     {
+      path: '/patient/prescriptions',
+      label: 'Prescriptions',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+        </svg>
+      ),
+    },
+    {
       path: '/patient/profile',
       label: 'Profile',
       icon: (
@@ -107,14 +135,32 @@ export default function PatientLayout() {
               <span className="font-bold text-gray-900">HealthCare</span>
             </div>
           )}
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-2 hover:bg-gray-100 rounded-lg transition"
-          >
-            <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={sidebarOpen ? "M11 19l-7-7 7-7m8 14l-7-7 7-7" : "M13 5l7 7-7 7M5 5l7 7-7 7"} />
-            </svg>
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Notification Bell */}
+            <button
+              onClick={() => navigate('/patient/notifications')}
+              className="relative p-2 hover:bg-gray-100 rounded-lg transition"
+              title="Notifications"
+            >
+              <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.406A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 15.732M15 17H9m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              </svg>
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </button>
+
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="p-2 hover:bg-gray-100 rounded-lg transition"
+            >
+              <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={sidebarOpen ? "M11 19l-7-7 7-7m8 14l-7-7 7-7" : "M13 5l7 7-7 7M5 5l7 7-7 7"} />
+              </svg>
+            </button>
+          </div>
         </div>
 
         {/* Navigation */}

@@ -117,7 +117,7 @@ export default function AppointmentsPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold" style={{ color: '#080808' }}>My Appointments</h1>
         <button 
-          onClick={() => navigate('/patient/doctors')}
+          onClick={() => navigate('/doctor-search')}
           className="px-4 py-2 rounded-lg text-white font-medium"
           style={{ backgroundColor: '#146ef5' }}
         >
@@ -169,7 +169,7 @@ export default function AppointmentsPage() {
           <h3 className="text-xl font-semibold mt-4 mb-2" style={{ color: '#080808' }}>No appointments yet</h3>
           <p className="mb-4" style={{ color: '#5a5a5a' }}>Book your first appointment with a doctor</p>
           <button 
-            onClick={() => navigate('/patient/doctors')}
+            onClick={() => navigate('/doctor-search')}
             className="px-6 py-3 rounded-lg text-white font-medium"
             style={{ backgroundColor: '#146ef5' }}
           >

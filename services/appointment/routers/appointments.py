@@ -36,7 +36,7 @@ def verify_patient_token(authorization: Optional[str] = Header(None)) -> int:
     if not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Invalid authorization format")
     token = authorization.replace("Bearer ", "")
-    secret = os.getenv("JWT_SECRET", "your-secret-key")
+    secret = os.getenv("JWT_SECRET", os.getenv("SECRET_KEY", "supersecretkey"))
     try:
         payload = jwt.decode(token, secret, algorithms=["HS256"])
         patient_id = payload.get("sub") or payload.get("patient_id")

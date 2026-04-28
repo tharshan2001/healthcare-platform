@@ -19,9 +19,14 @@ export default function PaymentSuccess() {
       try {
         const booking = JSON.parse(bookingData);
         
-        const res = await fetch('http://localhost:8002/doctors/slots/book', {
+        const token = localStorage.getItem('patient_token');
+        
+        const res = await fetch(`${import.meta.env.VITE_DOCTOR_API || 'http://localhost:8002'}/doctors/slots/book`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': token ? `Bearer ${token}` : ''
+          },
           body: JSON.stringify({
             slot_id: booking.slot_id,
             patient_id: booking.patient_id,

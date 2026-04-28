@@ -20,6 +20,8 @@ import PatientDashboard from './pages/patient/PatientDashboard';
 import PatientAppointments from './pages/patient/AppointmentsPage';
 import PatientRecords from './pages/patient/RecordsPage';
 import PatientProfile from './pages/patient/ProfilePage';
+import PrescriptionsPage from './pages/patient/PrescriptionsPage';
+import NotificationsPage from './pages/patient/NotificationsPage';
 import PatientLayout from './layouts/PatientLayout';
 
 import SymptomChecker from './pages/patient/SymptomChecker';
@@ -108,6 +110,9 @@ function App() {
             <Route path="/patient/dashboard" element={<PatientDashboard />} />
             <Route path="/patient/appointments" element={<PatientAppointments />} />
             <Route path="/patient/records" element={<PatientRecords />} />
+            <Route path="/patient/prescriptions" element={<PrescriptionsPage />} />
+            <Route path="/patient/notifications" element={<NotificationsPage />} />
+            <Route path="/patient/symptom-checker" element={<SymptomChecker />} />
             <Route path="/patient/profile" element={<PatientProfile />} />
           </Route>
         </Route>

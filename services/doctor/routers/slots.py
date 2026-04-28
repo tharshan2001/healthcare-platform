@@ -18,22 +18,30 @@ router = APIRouter()
 LOCK_DURATION_MINUTES = 10
 
 def get_current_patient_id(authorization: Optional[str] = Header(None)) -> int:
+    print(f"DEBUG get_current_patient_id called, authorization: {authorization}")
     if not authorization:
+        print("ERROR: No authorization header")
         raise HTTPException(status_code=401, detail="Authorization header required")
     if not authorization.startswith("Bearer "):
+        print("ERROR: Invalid authorization format:", authorization[:50] if authorization else "None")
         raise HTTPException(status_code=401, detail="Invalid authorization format")
     token = authorization.replace("Bearer ", "")
     import jwt
-    secret = os.getenv("JWT_SECRET", "your-secret-key")
+    secret = os.getenv("JWT_SECRET", os.getenv("SECRET_KEY", "supersecretkey"))
+    print(f"Decoding token with secret: {secret[:20]}...")
     try:
         payload = jwt.decode(token, secret, algorithms=["HS256"])
+        print(f"Token payload: {payload}")
         patient_id = payload.get("sub") or payload.get("patient_id")
         if not patient_id:
+            print("ERROR: No patient_id in token payload")
             raise HTTPException(status_code=401, detail="Invalid token payload")
         return int(patient_id)
     except jwt.ExpiredSignatureError:
+        print("ERROR: Token expired")
         raise HTTPException(status_code=401, detail="Token expired")
-    except jwt.InvalidTokenError:
+    except jwt.InvalidTokenError as e:
+        print(f"ERROR: Invalid token: {e}")
         raise HTTPException(status_code=401, detail="Invalid token")
 
 class TimeSlotResponse(BaseModel):
@@ -185,7 +193,8 @@ def book_slot(
     try:
         with httpx.Client(timeout=15.0) as client:
             # Get patient email/phone from patient service
-            patient_url = f"http://localhost:8001/patients/{request.patient_id}"
+            patient_service_url = os.getenv("PATIENT_SERVICE_URL", "http://localhost:8001")
+            patient_url = f"{patient_service_url}/patients/{request.patient_id}"
             patient_response = client.get(patient_url)
             patient_data = patient_response.json() if patient_response.status_code == 200 else {}
             print(f"Patient data: {patient_data}")

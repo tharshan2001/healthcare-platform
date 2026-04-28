@@ -38,20 +38,21 @@ export default function PaymentModal({
     setProcessing(true);
     toast.loading('Processing payment...', { id: 'pay' });
 
-    try {
-      const res = await fetch('/api/payment/payments/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          appointment_id: slot.id || Math.floor(Date.now()/1000),
-          patient_id: patientId,
-          amount: doctor.consultation_fee || 5000,
-          currency: 'LKR',
-          payment_method: 'card',
-          patient_email: 'aptharshan@gmail.com',
-          patient_phone: '0705710466'
-        })
-      }, { signal: AbortSignal.timeout(30000) });
+      try {
+        const PAYMENT_API = import.meta.env.VITE_PAYMENT_API || 'http://localhost:8005';
+        const res = await fetch(`${PAYMENT_API}/payments/create`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            appointment_id: slot.id || Math.floor(Date.now()/1000),
+            patient_id: patientId,
+            amount: doctor.consultation_fee || 5000,
+            currency: 'LKR',
+            payment_method: 'card',
+            patient_email: 'aptharshan@gmail.com',
+            patient_phone: '0705710466'
+          })
+        }, { signal: AbortSignal.timeout(30000) });
 
       if (!res.ok) {
         const errorText = await res.text();
@@ -90,10 +91,14 @@ export default function PaymentModal({
     if (processing) return;
     
     if (lockedSlotId && patientId) {
+      const token = localStorage.getItem('patient_token');
       try {
-        await fetch('http://localhost:8002/doctors/slots/release', {
+        await fetch(`${import.meta.env.VITE_DOCTOR_API || 'http://localhost:8002'}/doctors/slots/release`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': token ? `Bearer ${token}` : ''
+          },
           body: JSON.stringify({ slot_id: lockedSlotId, patient_id: patientId })
         });
       } catch (e) {

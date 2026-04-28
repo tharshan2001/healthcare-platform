@@ -71,7 +71,7 @@ export default function PatientDashboard() {
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <button
           onClick={() => navigate('/patient/appointments')}
           className="p-4 bg-white rounded-xl border border-gray-200 hover:border-blue-300 hover:shadow-sm transition text-left"
@@ -86,16 +86,16 @@ export default function PatientDashboard() {
         </button>
 
         <button
-          onClick={() => navigate('/')}
+          onClick={() => navigate('/doctor-search')}
           className="p-4 bg-white rounded-xl border border-gray-200 hover:border-green-300 hover:shadow-sm transition text-left"
         >
           <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mb-3">
             <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </div>
-          <p className="font-semibold text-gray-900">Book New</p>
-          <p className="text-sm text-gray-500">Find a doctor</p>
+          <p className="font-semibold text-gray-900">Find Doctor</p>
+          <p className="text-sm text-gray-500">Book appointment</p>
         </button>
 
         <button
@@ -111,19 +111,45 @@ export default function PatientDashboard() {
           <p className="text-sm text-gray-500">Consult online</p>
         </button>
 
-        <button
-          onClick={() => navigate('/patient/records')}
-          className="p-4 bg-white rounded-xl border border-gray-200 hover:border-orange-300 hover:shadow-sm transition text-left"
-        >
-          <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center mb-3">
-            <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-          </div>
-          <p className="font-semibold text-gray-900">Records</p>
-          <p className="text-sm text-gray-500">Medical files</p>
-        </button>
-      </div>
+           <button
+             onClick={() => navigate('/patient/records')}
+             className="p-4 bg-white rounded-xl border border-gray-200 hover:border-orange-300 hover:shadow-sm transition text-left"
+           >
+             <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center mb-3">
+               <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+               </svg>
+             </div>
+             <p className="font-semibold text-gray-900">Records</p>
+             <p className="text-sm text-gray-500">Medical files</p>
+           </button>
+
+           <button
+             onClick={() => navigate('/patient/prescriptions')}
+             className="p-4 bg-white rounded-xl border border-gray-200 hover:border-purple-300 hover:shadow-sm transition text-left"
+           >
+             <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center mb-3">
+               <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+               </svg>
+             </div>
+             <p className="font-semibold text-gray-900">Prescriptions</p>
+             <p className="text-sm text-gray-500">View & manage</p>
+           </button>
+
+           <button
+             onClick={() => navigate('/patient/notifications')}
+             className="p-4 bg-white rounded-xl border border-gray-200 hover:border-yellow-300 hover:shadow-sm transition text-left"
+           >
+             <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center mb-3">
+               <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.406A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 15.732M15 17H9m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+               </svg>
+             </div>
+             <p className="font-semibold text-gray-900">Notifications</p>
+             <p className="text-sm text-gray-500">Alerts & updates</p>
+           </button>
+         </div>
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
