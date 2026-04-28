@@ -35,3 +35,11 @@ def get_prescriptions(
 ):
     prescriptions = db.query(Prescription).filter(Prescription.doctor_id == current_doctor.id).all()
     return prescriptions
+
+@router.get("/prescriptions/patient/{patient_id}", response_model=List[PrescriptionResponse])
+def get_patient_prescriptions(
+    patient_id: int,
+    db: Session = Depends(get_db)
+):
+    prescriptions = db.query(Prescription).filter(Prescription.patient_id == patient_id).all()
+    return prescriptions

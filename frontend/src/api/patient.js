@@ -1,4 +1,7 @@
-const API_BASE = 'http://localhost:8001';
+const API_BASE = import.meta.env.VITE_PATIENT_API || 'http://localhost:8001';
+const DOCTOR_API = import.meta.env.VITE_DOCTOR_API || 'http://localhost:8002';
+const APPOINTMENT_API = import.meta.env.VITE_APPOINTMENT_API || 'http://localhost:8003';
+const NOTIFICATION_API = import.meta.env.VITE_NOTIFICATION_API || 'http://localhost:8006';
 
 const getAuthHeader = () => {
   const token = localStorage.getItem('patient_token');
@@ -36,7 +39,11 @@ export const patientAPI = {
     const res = await fetch(`${API_BASE}/auth/profile`, {
       headers: { ...getAuthHeader() },
     });
-    return res.json();
+    if (!res.ok) {
+      return { detail: 'Invalid token' };
+    }
+    const data = await res.json();
+    return data;
   },
 
   updateProfile: async (data) => {
@@ -56,48 +63,52 @@ export const patientAPI = {
     if (filters.min_experience) params.append('min_experience', filters.min_experience);
     if (filters.max_fee) params.append('max_fee', filters.max_fee);
     const queryString = params.toString();
-    const res = await fetch(`${API_BASE}/doctors/doctors/public${queryString ? '?' + queryString : ''}`);
+    const res = await fetch(`${API_BASE}/doctors${queryString ? '?' + queryString : ''}`);
     return res.json();
   },
 
   getSpecializations: async () => {
-    const res = await fetch(`http://localhost:8002/specializations`);
+    const res = await fetch(`${API_BASE}/specializations`);
     return res.json();
   },
 
   getHospitals: async () => {
-    const res = await fetch(`http://localhost:8002/hospitals`);
+    const res = await fetch(`${API_BASE}/hospitals`);
     return res.json();
   },
 
   getDoctor: async (id) => {
-    const res = await fetch(`${API_BASE}/doctors/doctors/public/${id}`);
+    const res = await fetch(`${API_BASE}/doctors/${id}`);
     return res.json();
   },
 
   getDoctorAvailability: async (doctorId) => {
-    const res = await fetch(`${API_BASE}/doctors/doctors/${doctorId}/availability`);
+    const res = await fetch(`${API_BASE}/doctors/${doctorId}/availability`);
     return res.json();
   },
 
   getAvailableSlots: async (doctorId, date) => {
-    const res = await fetch(`${API_BASE}/doctors/doctors/${doctorId}/slots?date=${date}`);
+    const res = await fetch(`${API_BASE}/doctors/${doctorId}/slots?date=${date}`);
     return res.json();
   },
 
   lockSlot: async (slotId, patientId) => {
-    const res = await fetch('http://localhost:8002/doctors/slots/lock', {
+    const res = await fetch(`${DOCTOR_API}/doctors/slots/lock`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
       body: JSON.stringify({ slot_id: slotId, patient_id: patientId }),
     });
-    return res.json();
+    const data = await res.json();
+    if (!res.ok && res.status === 401) {
+      throw new Error('Please login to book an appointment');
+    }
+    return data;
   },
 
   bookSlot: async (slotId, patientId, doctorId, date, time, reason) => {
-    const res = await fetch('http://localhost:8002/doctors/slots/book', {
+    const res = await fetch(`${DOCTOR_API}/doctors/slots/book`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
       body: JSON.stringify({
         slot_id: slotId,
         patient_id: patientId,
@@ -108,6 +119,9 @@ export const patientAPI = {
       }),
     });
     if (!res.ok) {
+      if (res.status === 401) {
+        throw new Error('Please login to book an appointment');
+      }
       const err = await res.json();
       throw new Error(err.detail || 'Failed to book');
     }
@@ -115,16 +129,16 @@ export const patientAPI = {
   },
 
   releaseSlot: async (slotId, patientId) => {
-    const res = await fetch('http://localhost:8002/doctors/slots/release', {
+    const res = await fetch(`${DOCTOR_API}/doctors/slots/release`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
       body: JSON.stringify({ slot_id: slotId, patient_id: patientId }),
     });
     return res.json();
   },
 
   createAppointment: async (data) => {
-    const res = await fetch(`${API_BASE}/appointments/appointments`, {
+    const res = await fetch(`${APPOINTMENT_API}/appointments`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
       body: JSON.stringify(data),
@@ -133,21 +147,21 @@ export const patientAPI = {
   },
 
   getAppointments: async () => {
-    const res = await fetch(`${API_BASE}/appointments/appointments`, {
+    const res = await fetch(`${APPOINTMENT_API}/appointments`, {
       headers: { ...getAuthHeader() },
     });
     return res.json();
   },
 
   getAppointment: async (id) => {
-    const res = await fetch(`${API_BASE}/appointments/appointments/${id}`, {
+    const res = await fetch(`${APPOINTMENT_API}/appointments/${id}`, {
       headers: { ...getAuthHeader() },
     });
     return res.json();
   },
 
   getRecords: async () => {
-    const res = await fetch(`${API_BASE}/records/records`, {
+    const res = await fetch(`${API_BASE}/records`, {
       headers: { ...getAuthHeader() },
     });
     return res.json();
@@ -157,7 +171,7 @@ export const patientAPI = {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('record_type', recordType);
-    const res = await fetch(`${API_BASE}/records/upload-record`, {
+    const res = await fetch(`${API_BASE}/records`, {
       method: 'POST',
       headers: { ...getAuthHeader() },
       body: formData,
@@ -166,20 +180,24 @@ export const patientAPI = {
   },
 
   getNotifications: async () => {
-    const userId = localStorage.getItem('patient_id') || 1;
-    const res = await fetch(`http://localhost:8004/notifications/${userId}`);
+    const res = await fetch(`${API_BASE}/notifications`, {
+      headers: { ...getAuthHeader() },
+    });
     return res.json();
   },
 
   getUnreadNotifications: async () => {
     const userId = localStorage.getItem('patient_id') || 1;
-    const res = await fetch(`http://localhost:8004/notifications/unread/${userId}`);
+    const res = await fetch(`${API_BASE}/notifications/unread/${userId}`, {
+      headers: { ...getAuthHeader() },
+    });
     return res.json();
   },
 
   markNotificationRead: async (id) => {
-    const res = await fetch(`http://localhost:8004/notifications/${id}`, {
+    const res = await fetch(`${API_BASE}/notifications/${id}`, {
       method: 'PUT',
+      headers: { ...getAuthHeader() },
     });
     return res.json();
   },

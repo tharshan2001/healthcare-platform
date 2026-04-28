@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
 import botImage from '../../assets/bot.svg'
 
+const API_BASE = import.meta.env.VITE_AI_SYMPTOM_API || 'http://localhost:8007'
+
 const BotAvatar = () => (
   <div className="w-10 h-10 rounded-full flex items-center justify-center text-xl shrink-0 shadow-md overflow-hidden p-1">
     <img src={botImage} alt="Dr. AI" className="w-full h-full object-cover" />
@@ -14,22 +16,42 @@ const UserAvatar = () => (
 )
 
 function SymptomChecker() {
-  const [messages, setMessages] = useState([
-    { role: 'assistant', content: "Hello! I'm Dr. AI, your medical symptom assistant. Describe your symptoms (e.g., 'headache, fever, cough') and I'll suggest possible conditions. Remember to consult a doctor for proper diagnosis." }
-  ])
+  const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [isInitialized, setIsInitialized] = useState(false)
   const messagesEndRef = useRef(null)
+
+  useEffect(() => {
+    const fetchGreeting = async () => {
+      try {
+        const response = await fetch(`${API_BASE}/api/greeting`)
+        const data = await response.json()
+        setMessages([{ role: 'assistant', content: data.greeting }])
+      } catch {
+        setMessages([{ 
+          role: 'assistant', 
+          content: "Hey there! I'm Dr. AI. Tell me what symptoms you're experiencing and I'll help you understand what might be going on." 
+        }])
+      }
+      setIsInitialized(true)
+    }
+    fetchGreeting()
+  }, [])
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
 
-  useEffect(scrollToBottom, [messages])
+  useEffect(() => {
+    if (isInitialized) {
+      scrollToBottom()
+    }
+  }, [messages, isInitialized])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!input.trim() || loading) return
+    if (!input.trim() || loading || !isInitialized) return
 
     const userMessage = input.trim()
     setInput('')
@@ -37,7 +59,7 @@ function SymptomChecker() {
     setLoading(true)
 
     try {
-      const response = await fetch('http://localhost:8000/api/chat', {
+      const response = await fetch(`${API_BASE}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: userMessage })
@@ -47,7 +69,7 @@ function SymptomChecker() {
     } catch {
       setMessages(prev => [...prev, {
         role: 'assistant', 
-        content: '⚠️ Couldn\'t reach server. Please ensure backend is running on port 8000.' 
+        content: '⚠️ Couldn\'t reach server. Please ensure backend is running on port 8007.' 
       }])
     }
     setLoading(false)

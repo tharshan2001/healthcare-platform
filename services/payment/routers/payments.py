@@ -2,6 +2,7 @@ import os
 from dotenv import load_dotenv
 import stripe
 import httpx
+import threading
 from fastapi import APIRouter, Depends, HTTPException,Request
 from sqlalchemy.orm import Session
 from database import get_db
@@ -16,24 +17,26 @@ from utils.stripe_client import create_checkout_session
 
 router = APIRouter(prefix="/payments", tags=["Payments"])
 
-NOTIFICATION_SERVICE_URL = os.getenv("NOTIFICATION_SERVICE_URL", "http://localhost:8004")
+NOTIFICATION_SERVICE_URL = os.getenv("NOTIFICATION_SERVICE_URL", "http://localhost:8006")
 
 
-def send_payment_notification(user_id: int, message: str, email: str, phone: str):
-    try:
-        with httpx.Client(timeout=10.0) as client:
-            client.post(
-                f"{NOTIFICATION_SERVICE_URL}/notifications/",
-                json={
-                    "user_id": user_id,
-                    "message": message,
-                    "type": "payment",
-                    "email": email,
-                    "phone": phone
-                }
-            )
-    except Exception as e:
-        print(f"Failed to send notification: {e}")
+def send_payment_notification_async(user_id: int, message: str, email: str, phone: str):
+    def _send():
+        try:
+            with httpx.Client(timeout=3.0) as client:
+                client.post(
+                    f"{NOTIFICATION_SERVICE_URL}/notifications/",
+                    json={
+                        "user_id": user_id,
+                        "message": message,
+                        "type": "payment",
+                        "email": email,
+                        "phone": phone
+                    }
+                )
+        except Exception as e:
+            print(f"Failed to send notification: {e}")
+    threading.Thread(target=_send, daemon=True).start()
 
 
 @router.post("/create", response_model=CreatePaymentResponse)
@@ -63,7 +66,7 @@ def create_payment(request: CreatePaymentRequest, db: Session = Depends(get_db))
 
         if request.patient_email:
             message = f"Your payment of ${request.amount} is ready. Please complete payment to confirm your appointment."
-            send_payment_notification(
+            send_payment_notification_async(
                 user_id=request.patient_id,
                 message=message,
                 email=request.patient_email,
@@ -79,7 +82,9 @@ def create_payment(request: CreatePaymentRequest, db: Session = Depends(get_db))
 
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Failed to create payment: {str(e)}")
+        error_msg = str(e)
+        print(f"Payment creation failed: {error_msg}")
+        raise HTTPException(status_code=503, detail=error_msg)
 
 
 @router.get("/{payment_id}", response_model=PaymentResponse)

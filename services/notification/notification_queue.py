@@ -42,18 +42,24 @@ async def process_queue():
             
             try:
                 if notification.get("email"):
-                    send_email(
-                        notification["email"],
-                        notification.get("subject", "New Notification"),
-                        notification["message"]
-                    )
+                    try:
+                        send_email(
+                            notification["email"],
+                            notification.get("subject", "New Notification"),
+                            notification["message"]
+                        )
+                    except Exception as email_error:
+                        print(f"⚠️ Email failed (non-critical): {email_error}")
                 
                 if notification.get("phone"):
-                    send_sms(
-                        notification["phone"],
-                        notification["message"]
-                    )
+                    try:
+                        send_sms(
+                            notification["phone"],
+                            notification["message"]
+                        )
+                    except Exception as sms_error:
+                        print(f"⚠️ SMS failed (non-critical): {sms_error}")
                 
-                print(f"✅ Queued notification sent to user {notification.get('user_id')}")
+                print(f"✅ Queued notification processed for user {notification.get('user_id')}")
             except Exception as e:
                 print(f"❌ Failed to process queued notification: {e}")

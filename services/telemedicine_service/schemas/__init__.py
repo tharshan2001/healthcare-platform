@@ -7,6 +7,7 @@ from .session import (
     SessionCreateRequest,
     SessionCreateResponse,
     SessionDetailResponse,
+    SessionEventResponse,
     SessionListResponse,
     StartSessionRequest,
 )
@@ -17,6 +18,7 @@ __all__ = [
     "JoinSessionRequest",
     "JoinSessionResponse",
     "SessionDetailResponse",
+    "SessionEventResponse",
     "SessionListResponse",
     "StartSessionRequest",
     "CompleteSessionRequest",

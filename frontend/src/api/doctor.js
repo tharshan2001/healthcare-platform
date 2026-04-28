@@ -1,4 +1,5 @@
-const API_BASE = 'http://localhost:8002';
+const API_BASE = import.meta.env.VITE_DOCTOR_API || 'http://localhost:8002';
+const APPOINTMENT_API = import.meta.env.VITE_APPOINTMENT_API || 'http://localhost:8003';
 
 const getAuthHeader = () => {
   const token = localStorage.getItem('doctor_token');
@@ -76,7 +77,7 @@ export const doctorAPI = {
   },
 
   deleteAvailability: async (id) => {
-    const res = await fetch(`${API_BASE}/availability/availability/${id}`, {
+    const res = await fetch(`${API_BASE}/availability/${id}`, {
       method: 'DELETE',
       headers: { ...getAuthHeader() },
     });
@@ -84,7 +85,7 @@ export const doctorAPI = {
   },
 
   createPrescription: async (data) => {
-    const res = await fetch(`${API_BASE}/prescriptions/prescriptions`, {
+    const res = await fetch(`${API_BASE}/prescriptions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
       body: JSON.stringify(data),
@@ -93,19 +94,29 @@ export const doctorAPI = {
   },
 
   getMyPrescriptions: async () => {
-    const res = await fetch(`${API_BASE}/prescriptions/prescriptions`, {
+    const res = await fetch(`${API_BASE}/prescriptions`, {
+      headers: { ...getAuthHeader() },
+    });
+    return res.json();
+  },
+
+  getPatientPrescriptions: async (patientId) => {
+    const res = await fetch(`${API_BASE}/prescriptions/patient/${patientId}`, {
       headers: { ...getAuthHeader() },
     });
     return res.json();
   },
 
   getMyAppointments: async () => {
-    const res = await fetch('http://localhost:8003/appointments/appointments?doctor_id=1');
+    const doctorId = localStorage.getItem('doctor_id');
+    const res = await fetch(`${API_BASE}/appointments?doctor_id=${doctorId || 1}`, {
+      headers: { ...getAuthHeader() },
+    });
     return res.json();
   },
 
   updateAppointment: async (id, data) => {
-    const res = await fetch(`http://localhost:8003/appointments/appointments/${id}`, {
+    const res = await fetch(`${APPOINTMENT_API}/appointments/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
       body: JSON.stringify(data),

@@ -9,6 +9,11 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5444/telemedicine_db"
 
+    # Auth
+    SECRET_KEY: str = "supersecretkey"
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+
     # Application
     APP_NAME: str = "Telemedicine Service"
     APP_VERSION: str = "1.0.0"
@@ -47,6 +52,7 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=True,
+        extra="ignore",
     )
 
 

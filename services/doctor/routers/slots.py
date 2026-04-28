@@ -1,16 +1,48 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Header
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from database import get_db
 from schemas import AvailabilityResponse
 from models import Availability, Doctor, TimeSlot
-from typing import List
+from typing import List, Optional
 from datetime import datetime, timedelta
 import httpx
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+APPOINTMENT_SERVICE_URL = os.getenv("APPOINTMENT_SERVICE_URL", "http://localhost:8003")
 
 router = APIRouter()
 
 LOCK_DURATION_MINUTES = 10
+
+def get_current_patient_id(authorization: Optional[str] = Header(None)) -> int:
+    print(f"DEBUG get_current_patient_id called, authorization: {authorization}")
+    if not authorization:
+        print("ERROR: No authorization header")
+        raise HTTPException(status_code=401, detail="Authorization header required")
+    if not authorization.startswith("Bearer "):
+        print("ERROR: Invalid authorization format:", authorization[:50] if authorization else "None")
+        raise HTTPException(status_code=401, detail="Invalid authorization format")
+    token = authorization.replace("Bearer ", "")
+    import jwt
+    secret = os.getenv("JWT_SECRET", os.getenv("SECRET_KEY", "supersecretkey"))
+    print(f"Decoding token with secret: {secret[:20]}...")
+    try:
+        payload = jwt.decode(token, secret, algorithms=["HS256"])
+        print(f"Token payload: {payload}")
+        patient_id = payload.get("sub") or payload.get("patient_id")
+        if not patient_id:
+            print("ERROR: No patient_id in token payload")
+            raise HTTPException(status_code=401, detail="Invalid token payload")
+        return int(patient_id)
+    except jwt.ExpiredSignatureError:
+        print("ERROR: Token expired")
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError as e:
+        print(f"ERROR: Invalid token: {e}")
+        raise HTTPException(status_code=401, detail="Invalid token")
 
 class TimeSlotResponse(BaseModel):
     id: int
@@ -42,6 +74,40 @@ class ReleaseSlotRequest(BaseModel):
     slot_id: int
     patient_id: int
 
+class CreateSlotRequest(BaseModel):
+    doctor_id: int
+    date: str
+    time: str
+
+class CreateSlotResponse(BaseModel):
+    id: int
+    doctor_id: int
+    date: str
+    time: str
+    available: bool
+
+@router.post("/doctors/slots", response_model=CreateSlotResponse)
+def create_slot(
+    request: CreateSlotRequest,
+    db: Session = Depends(get_db)
+):
+    slot = TimeSlot(
+        doctor_id=request.doctor_id,
+        date=request.date,
+        time=request.time,
+        is_booked=False
+    )
+    db.add(slot)
+    db.commit()
+    db.refresh(slot)
+    return {
+        "id": slot.id,
+        "doctor_id": slot.doctor_id,
+        "date": slot.date,
+        "time": slot.time,
+        "available": not slot.is_booked
+    }
+
 @router.get("/doctors/{doctor_id}/slots")
 def get_available_slots(
     doctor_id: int,
@@ -69,8 +135,12 @@ def get_available_slots(
 @router.post("/doctors/slots/lock", response_model=LockSlotResponse)
 def lock_slot(
     request: LockSlotRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    authorization: Optional[str] = Header(None)
 ):
+    patient_id = get_current_patient_id(authorization)
+    if request.patient_id != patient_id:
+        raise HTTPException(status_code=403, detail="Patient ID mismatch")
     slot = db.query(TimeSlot).filter(TimeSlot.id == request.slot_id).first()
     if not slot:
         raise HTTPException(status_code=404, detail="Slot not found")
@@ -104,8 +174,12 @@ def lock_slot(
 @router.post("/doctors/slots/book")
 def book_slot(
     request: BookSlotRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    authorization: Optional[str] = Header(None)
 ):
+    patient_id = get_current_patient_id(authorization)
+    if request.patient_id != patient_id:
+        raise HTTPException(status_code=403, detail="Patient ID mismatch")
     slot = db.query(TimeSlot).filter(TimeSlot.id == request.slot_id).first()
     if not slot:
         raise HTTPException(status_code=404, detail="Slot not found")
@@ -117,23 +191,44 @@ def book_slot(
             raise HTTPException(status_code=409, detail="Slot was locked by another patient")
     
     try:
-        with httpx.Client() as client:
+        with httpx.Client(timeout=15.0) as client:
+            # Get patient email/phone from patient service
+            patient_service_url = os.getenv("PATIENT_SERVICE_URL", "http://localhost:8001")
+            patient_url = f"{patient_service_url}/patients/{request.patient_id}"
+            patient_response = client.get(patient_url)
+            patient_data = patient_response.json() if patient_response.status_code == 200 else {}
+            print(f"Patient data: {patient_data}")
+            
+            appt_payload = {
+                "patient_id": request.patient_id,
+                "doctor_id": request.doctor_id,
+                "appointment_date": request.date,
+                "appointment_time": request.time,
+                "reason_for_visit": request.reason,
+                "patient_email": patient_data.get("email", "patient@example.com"),
+                "patient_phone": patient_data.get("phone", "0712345678")
+            }
+            print(f"Creating appointment with: {appt_payload}")
+            
             response = client.post(
-                f"{APPOINTMENT_SERVICE_URL}/appointments/appointments",
-                json={
-                    "patient_id": request.patient_id,
-                    "doctor_id": request.doctor_id,
-                    "appointment_date": request.date,
-                    "appointment_time": request.time,
-                    "reason_for_visit": request.reason
-                }
+                f"{APPOINTMENT_SERVICE_URL}/appointments/appointments/internal",
+                json=appt_payload,
+                headers={"Authorization": authorization}
             )
+            print(f"Appointment response: {response.status_code}, {response.text}")
+            
             if response.status_code == 200:
                 slot.is_booked = True
                 slot.locked_at = now
                 slot.booked_by = request.patient_id
                 db.commit()
-                return {"success": True, "message": "Appointment booked successfully"}
+                return {"success": True, "message": "Appointment booked successfully", "id": response.json().get("id")}
+            elif response.status_code == 400 and "already booked" in response.text.lower():
+                slot.is_booked = True
+                slot.locked_at = now
+                slot.booked_by = request.patient_id
+                db.commit()
+                return {"success": True, "message": "Appointment already exists", "id": None}
             else:
                 slot.is_booked = False
                 slot.locked_at = None
@@ -150,8 +245,12 @@ def book_slot(
 @router.post("/doctors/slots/release")
 def release_slot(
     request: ReleaseSlotRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    authorization: Optional[str] = Header(None)
 ):
+    patient_id = get_current_patient_id(authorization)
+    if request.patient_id != patient_id:
+        raise HTTPException(status_code=403, detail="Patient ID mismatch")
     slot = db.query(TimeSlot).filter(TimeSlot.id == request.slot_id).first()
     if not slot:
         raise HTTPException(status_code=404, detail="Slot not found")

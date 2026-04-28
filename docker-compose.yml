@@ -1,0 +1,182 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: healthcare-postgres
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./services/init-db:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  patient-service:
+    build: ./services/patient
+    container_name: patient-service
+    ports:
+      - "8001:8001"
+    env_file:
+      - ./services/patient/.env
+    environment:
+      - DATABASE_URL=postgresql://admin:admin_pass@postgres:5432/patient_db
+      - NOTIFICATION_SERVICE_URL=http://notification-service:8006
+      - DOCTOR_SERVICE_URL=http://doctor-service:8002
+      - APPOINTMENT_SERVICE_URL=http://appointment-service:8003
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8001/health')\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  doctor-service:
+    build: ./services/doctor
+    container_name: doctor-service
+    ports:
+      - "8002:8002"
+    env_file:
+      - ./services/doctor/.env
+    environment:
+      - DATABASE_URL=postgresql://admin:admin_pass@postgres:5432/doctor_db
+      - APPOINTMENT_SERVICE_URL=http://appointment-service:8003
+      - NOTIFICATION_SERVICE_URL=http://notification-service:8006
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8002/health')\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  appointment-service:
+    build: ./services/appointment
+    container_name: appointment-service
+    ports:
+      - "8003:8003"
+    env_file:
+      - ./services/appointment/.env
+    environment:
+      - DATABASE_URL=postgresql://admin:admin_pass@postgres:5432/appointment_db
+      - NOTIFICATION_SERVICE_URL=http://notification-service:8006
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8003/health')\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  telemedicine-service:
+    build: ./services/telemedicine_service
+    container_name: telemedicine-service
+    ports:
+      - "8004:8004"
+    env_file:
+      - ./services/telemedicine_service/.env
+    environment:
+      - DATABASE_URL=postgresql://admin:admin_pass@postgres:5432/telemedicine_db
+      - DOCTOR_SERVICE_URL=http://doctor-service:8002
+      - PATIENT_SERVICE_URL=http://patient-service:8001
+      - APPOINTMENT_SERVICE_URL=http://appointment-service:8003
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8004/health')\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  payment-service:
+    build: ./services/payment
+    container_name: payment-service
+    ports:
+      - "8005:8005"
+    env_file:
+      - ./services/payment/.env
+    environment:
+      - DATABASE_URL=postgresql://admin:admin_pass@postgres:5432/payment_db
+      - NOTIFICATION_SERVICE_URL=http://notification-service:8006
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8005/health')\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  notification-service:
+    build: ./services/notification
+    container_name: notification-service
+    ports:
+      - "8006:8006"
+    env_file:
+      - ./services/notification/.env
+    environment:
+      - DATABASE_URL=postgresql://admin:admin_pass@postgres:5432/notification_db
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8006/health')\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  ai-symptom-service:
+    build: ./services/ai_symptom
+    container_name: ai-symptom-service
+    ports:
+      - "8007:8007"
+    volumes:
+      - ./services/ai_symptom/faiss_index:/app/faiss_index
+    env_file:
+      - ./services/ai_symptom/.env
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8007/health')\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_BASE=http://patient-service:8001
+      - VITE_DOCTOR_API=http://doctor-service:8002
+      - VITE_AI_SYMPTOM_API=http://ai-symptom-service:8007
+    depends_on:
+      - patient-service
+      - doctor-service
+
+volumes:
+  postgres_data:
